@@ -50,5 +50,28 @@ def supplier_page():
 def business_page():
     return render_template('mainBusiness.html')  # Шаблон для бизнеса
 
+@app.route('/add_card', methods=['POST'])
+def add_card():
+    data = request.json
+    name = data.get('name')
+    quantity = data.get('quantity')
+    price = data.get('price')
+
+    if name and quantity and price:
+        try:
+            conn = sqlite3.connect('users.db')
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO cards (name, quantity, price)
+                VALUES (?, ?, ?)
+            ''', (name, quantity, float(price)))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'Card added successfully!'}), 200
+        except Exception as e:
+            print(f"Ошибка при сохранении карточки: {e}")
+            return jsonify({'message': 'Error saving card to database.'}), 500
+    return jsonify({'message': 'Invalid data!'}), 400
+
 if __name__ == '__main__':
     app.run(debug=True)

@@ -4,13 +4,23 @@ import sqlite3
 conn = sqlite3.connect('users.db')
 cursor = conn.cursor()
 
-# Создание таблицы пользователей с атрибутом role
+# Создание таблицы пользователей (если ещё нет)
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
-    role TEXT NOT NULL -- Роль пользователя: 'supplier' или 'business'
+    role TEXT NOT NULL
+)
+''')
+
+# Создание таблицы карточек
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS cards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    price REAL NOT NULL
 )
 ''')
 
