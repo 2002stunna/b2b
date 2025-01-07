@@ -43,12 +43,12 @@ def login():
 # Страница для поставщиков
 @app.route('/supplier', methods=['GET'])
 def supplier_page():
-    return render_template('templates/mainSupply.html')  # Шаблон для поставщиков
+    return render_template('mainSupply.html')  # Шаблон для поставщиков
 
 # Страница для бизнеса
 @app.route('/business', methods=['GET'])
 def business_page():
-    return render_template('templates/mainBusiness.html')  # Шаблон для бизнеса
+    return render_template('mainBusiness.html')  # Шаблон для бизнеса
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
