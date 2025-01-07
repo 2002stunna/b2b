@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
 cursor.execute('''
 INSERT INTO users (username, password)
 VALUES (?, ?)
-''', ('test_user', 'test_password'))  # Пароль в открытом виде только для примера
+''', ('vova', '1234'))  # Пароль в открытом виде только для примера
 
 conn.commit()
 conn.close()
