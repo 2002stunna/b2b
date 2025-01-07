@@ -3,14 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Independent Form Elements</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000; /* Чёрный фон */
+            color: white; /* Цвет текста */
+        }
+        .login-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Центрируем всё внутри контейнера */
+            gap: 15px; /* Задаём расстояние между элементами */
+            text-align: center;
+            width: 100%; /* Контейнер занимает всю ширину */
+            max-width: 300px; /* Ограничиваем ширину */
+        }
+        .logo {
+            margin-bottom: 20px; /* Отступ от логотипа до формы */
+        }
+        .input-box {
+            width: 100%;
+            display: flex;
+            justify-content: center; /* Центрируем инпуты */
+        }
+        .input-field {
+            width: 100%; /* Поля ввода занимают всю ширину контейнера */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #222; /* Тёмный фон поля */
+            color: white; /* Белый текст */
+        }
+        .button-container {
+            width: 100%;
+            display: flex;
+            justify-content: center; /* Центрируем кнопку */
+        }
+        .login-button {
+            width: 100%; /* Кнопка занимает всю ширину контейнера */
+            padding: 10px;
+            margin-top: 20px;
+            background-color: #ffffff;
+            border: none;
+            color: black;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .login-button:hover {
+            background-color: #000000;
+        }
+    </style>
 </head>
 <body>
-    <h1>Login</h1>
-    <form method="POST">
-        <input type="text" name="username" placeholder="Enter your username" required>
-        <input type="password" name="password" placeholder="Enter your password" required>
-        <button type="submit">Log In</button>
-    </form>
+    <div class="login-container">
+        <!-- Логотип -->
+        <div class="logo">
+            <img src="b2b.png" alt="Logo" style="max-width: 300px;">
+        </div>
+        <!-- Поля ввода -->
+        <div class="input-box">
+            <input type="text" name="username" class="input-field" placeholder="Username" required>
+        </div>
+        <div class="input-box">
+            <input type="password" name="password" class="input-field" placeholder="Password" required>
+        </div>
+        <!-- Кнопка -->
+        <div class="button-container">
+            <button type="submit" class="login-button">Log In</button>
+        </div>
+    </div>
 </body>
 </html>
