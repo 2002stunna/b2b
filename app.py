@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for, jsonify
 import sqlite3
 
 app = Flask(__name__)
@@ -24,13 +24,15 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
 
-        if not username or not password:
-            return "Ошибка: не заполнены поля логина или пароля.", 400
+        print(f"Получены данные: username={username}, password={password}")  # Отладка
 
-        # Проверяем пользователя
+        if not username or not password:
+            return render_template('login.html', error="Both fields are required!")
+
         user = check_user(username, password)
+        print(f"Результат проверки пользователя: {user}")  # Отладка
+
         if user:
-            # В зависимости от роли перенаправляем на разные страницы
             if user['role'] == 'supplier':
                 return redirect(url_for('supplier_page'))
             elif user['role'] == 'business':

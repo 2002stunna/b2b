@@ -67,6 +67,11 @@
         .login-button:hover {
             background-color: #808080;
         }
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -77,16 +82,19 @@
         </div>
         <!-- Поля ввода -->
         <form action="/" method="POST" style="width: 100%;"> <!-- Связь с сервером -->
-        <div class="input-box">
-            <input type="text" name="username" class="input-field" placeholder="Username" required>
-        </div>
-        <div class="input-box2">
-            <input type="password" name="password" class="input-field" placeholder="Password" required>
-        </div>
-        <!-- Кнопка -->
-        <div class="button-container">
-            <button type="submit" class="login-button">Log In</button>
-        </div>
+            <div class="input-box">
+                <input type="text" name="username" class="input-field" placeholder="Username" required>
+            </div>
+            <div class="input-box2">
+                <input type="password" name="password" class="input-field" placeholder="Password" required>
+            </div>
+            <!-- Кнопка -->
+            <div class="button-container">
+                <button type="submit" class="login-button">Log In</button>
+            </div>
+            {% if error %}
+            <p class="error-message">{{ error }}</p>
+            {% endif %}
         </form>
     </div>
 </body>
