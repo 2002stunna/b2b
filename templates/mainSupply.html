@@ -3,161 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Form Example</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            height: 100vh;
-            margin: 0;
-            background-color: #ffffff;
-            color: #155724;
-        }
-
-        button {
-            margin-top: 40px;
-            height: 50px;
-            width: 100px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        .form-container {
-            display: none; /* Скрываем форму по умолчанию */
-            flex-direction: column;
-            align-items: center;
-            margin-top: 20px;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            background-color: #f9f9f9;
-            width: 300px;
-        }
-
-        .form-container input {
-            width: 100%;
-            margin: 10px 0;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-
-        .form-container button {
-            width: 100%;
-            background-color: #28a745;
-            color: white;
-        }
-
-        .form-container button:hover {
-            background-color: #218838;
-        }
-
-        .cards-container {
-            margin-top: 20px;
-            display: flex;
-            flex-direction: row; /* Располагаем карточки в строку */
-            align-items: flex-start; /* Выравнивание по верхнему краю */
-            gap: 10px; /* Промежуток между карточками */
-            flex-wrap: wrap; /* Позволяем переносить карточки на следующую строку */
-        }
-
-        .card {
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            background-color: #e9ecef;
-            width: 200px;
-            text-align: center;
-        }
-    </style>
+    <title>Supplier</title>
 </head>
 <body>
-    <h1>Supplier</h1>
-    <button id="add-item-button">Add item</button>
-
-    <!-- Форма для добавления товара -->
-    <div class="form-container" id="form-container">
-        <input type="text" id="item-name" placeholder="Item Name" required>
-        <input type="number" id="item-quantity" placeholder="Quantity" required>
-        <input type="number" id="item-price" placeholder="Price" required>
-        <button id="submit-button">Add</button>
-    </div>
-
-    <!-- Контейнер для карточек -->
-    <div class="cards-container" id="cards-container"></div>
-
-    <script>
-        // Получаем элементы
-        const addItemButton = document.getElementById('add-item-button');
-        const formContainer = document.getElementById('form-container');
-        const submitButton = document.getElementById('submit-button');
-        const cardsContainer = document.getElementById('cards-container');
-
-        // Показываем форму при нажатии на "Add item"
-        addItemButton.addEventListener('click', () => {
-            formContainer.style.display = 'flex';
-        });
-
-        // Обрабатываем добавление товара
-        submitButton.addEventListener('click', async (e) => {
-            e.preventDefault(); // Предотвращаем перезагрузку страницы
-
-            // Получаем значения из полей формы
-            const name = document.getElementById('item-name').value;
-            const quantity = document.getElementById('item-quantity').value;
-            const price = document.getElementById('item-price').value;
-
-            if (name && quantity && price) {
-                // Отправляем данные на сервер
-                try {
-                    const response = await fetch('/add_card', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ name, quantity, price })
-                    });
-
-                    const result = await response.json();
-                    if (response.ok) {
-                        // Создаём карточку на клиенте
-                        const card = document.createElement('div');
-                        card.classList.add('card');
-                        card.innerHTML = `
-                            <h2>${name}</h2>
-                            <p>Quantity: ${quantity}</p>
-                            <p>Price: $${price}</p>
-                        `;
-
-                        // Добавляем карточку в контейнер
-                        cardsContainer.appendChild(card);
-
-                        // Очищаем форму и скрываем её
-                        formContainer.style.display = 'none';
-                        document.getElementById('item-name').value = '';
-                        document.getElementById('item-quantity').value = '';
-                        document.getElementById('item-price').value = '';
-                        alert(result.message);
-                    } else {
-                        alert(result.message);
-                    }
-                } catch (error) {
-                    console.error('Ошибка:', error);
-                }
-            } else {
-                alert('Please fill in all fields!');
-            }
-        });
-    </script>
+    <h1>Supplier Dashboard</h1>
+    <form method="POST">
+        <input type="text" name="name" placeholder="Product Name" required>
+        <input type="number" name="quantity" placeholder="Quantity" required>
+        <input type="number" name="price" placeholder="Price" step="0.01" required>
+        <button type="submit">Add Product</button>
+        {% if error %}
+        <p style="color: red;">{{ error }}</p>
+        {% endif %}
+    </form>
 </body>
 </html>

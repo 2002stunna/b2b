@@ -4,7 +4,7 @@ import sqlite3
 conn = sqlite3.connect('users.db')
 cursor = conn.cursor()
 
-# Создание таблицы пользователей (если ещё нет)
+# Создание таблицы пользователей
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
 )
 ''')
 
-# Создание таблицы карточек
+# Создание таблицы карточек продуктов
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS cards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,14 +28,14 @@ CREATE TABLE IF NOT EXISTS cards (
 cursor.execute('''
 INSERT INTO users (username, password, role)
 VALUES (?, ?, ?)
-''', ('vova', '1234', 'business'))  # Добавляем пользователя с ролью 'business'
+''', ('vova', '1234', 'business'))
 
 cursor.execute('''
 INSERT INTO users (username, password, role)
 VALUES (?, ?, ?)
-''', ('gosha', '1234', 'supplier'))  # Добавляем пользователя с ролью 'supplier'
+''', ('gosha', '1234', 'supplier'))
 
 conn.commit()
 conn.close()
 
-print("База данных создана, пользователи добавлены.")
+print("База данных обновлена.")

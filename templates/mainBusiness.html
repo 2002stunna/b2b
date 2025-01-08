@@ -3,24 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Success</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #ffffff;
-            color: #155724;
-        }
-        .message {
-            text-align: center;
-        }
-    </style>
+    <title>Business</title>
 </head>
 <body>
-    <h1>Бизнес</h1>
+    <h1>Business Dashboard</h1>
+    <div>
+        {% for card in cards %}
+        <div style="border: 1px solid #ccc; padding: 10px; margin: 10px;">
+            <h2>{{ card[1] }}</h2>
+            <p>Quantity: {{ card[2] }}</p>
+            <p>Price: ${{ card[3] }}</p>
+        </div>
+        {% endfor %}
+    </div>
 </body>
 </html>
