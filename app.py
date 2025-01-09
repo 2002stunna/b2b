@@ -1,9 +1,9 @@
-from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify
+from flask import Flask, request, render_template, redirect, url_for, make_response
 import sqlite3
 
 app = Flask(__name__)
 
-# Функция для проверки пользователя в базе данных
+# Проверка пользователя в базе данных
 def check_user(username, password):
     try:
         conn = sqlite3.connect('users.db')
@@ -18,7 +18,7 @@ def check_user(username, password):
         print(f"Ошибка в check_user: {e}")
         return None
 
-# Функция для получения карточек конкретного поставщика
+# Получение карточек текущего поставщика
 def get_cards_by_supplier(supplier_id):
     try:
         conn = sqlite3.connect('users.db')
@@ -31,7 +31,7 @@ def get_cards_by_supplier(supplier_id):
         print(f"Ошибка при получении карточек поставщика: {e}")
         return []
 
-# Функция для сохранения карточки в базе данных
+# Сохранение карточки в базе данных
 def save_card_to_db(name, quantity, price, supplier_id):
     try:
         conn = sqlite3.connect('users.db')
@@ -45,7 +45,6 @@ def save_card_to_db(name, quantity, price, supplier_id):
     except Exception as e:
         print(f"Ошибка при сохранении карточки: {e}")
 
-# Главная страница для входа
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -58,15 +57,14 @@ def login():
         user = check_user(username, password)
         if user:
             response = make_response(redirect(url_for('supplier_page') if user['role'] == 'supplier' else url_for('business_page')))
-            response.set_cookie('username', username)  # Устанавливаем cookie
-            response.set_cookie('password', password)  # Устанавливаем cookie
+            response.set_cookie('username', username)
+            response.set_cookie('password', password)
             return response
         else:
             return render_template('login.html', error="Invalid username or password", username=None)
 
     return render_template('login.html', username=None)
 
-# Страница для поставщика
 @app.route('/supplier', methods=['GET', 'POST'])
 def supplier_page():
     username = request.cookies.get('username')
@@ -93,29 +91,6 @@ def supplier_page():
 
     cards = get_cards_by_supplier(supplier_id)
     return render_template('mainSupply.html', cards=cards, username=username)
-
-# Страница для покупателя
-@app.route('/business')
-def business_page():
-    username = request.cookies.get('username')
-    if not username:
-        return redirect(url_for('login'))
-
-    # Функция для получения всех карточек
-    def get_all_cards():
-        try:
-            conn = sqlite3.connect('users.db')
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM cards')
-            cards = cursor.fetchall()
-            conn.close()
-            return cards
-        except Exception as e:
-            print(f"Ошибка при получении всех карточек: {e}")
-            return []
-
-    cards = get_all_cards()
-    return render_template('mainBusiness.html', cards=cards, username=username)
 
 if __name__ == '__main__':
     app.run(debug=True)
