@@ -94,5 +94,15 @@ def supplier_page():
 
     return render_template('mainSupply.html', cards=cards, username=username)
 
+@app.route('/business')
+def business_page():
+    # Получаем логин пользователя из cookie
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+
+    cards = get_cards()
+    return render_template('mainBusiness.html', cards=cards, username=username)
+
 if __name__ == '__main__':
     app.run(debug=True)
