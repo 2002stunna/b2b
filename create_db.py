@@ -40,7 +40,12 @@ VALUES (?, ?, ?)
 cursor.execute('''
 INSERT OR IGNORE INTO users (username, password, role)
 VALUES (?, ?, ?)
-''', ('anna', '5678', 'supplier'))
+''', ('igor', '5678', 'business'))
+
+cursor.execute('''
+INSERT OR IGNORE INTO users (username, password, role)
+VALUES (?, ?, ?)
+''', ('katya', '5678', 'supplier'))
 
 conn.commit()
 conn.close()
