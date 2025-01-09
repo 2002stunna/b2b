@@ -14,38 +14,35 @@ CREATE TABLE IF NOT EXISTS users (
 )
 ''')
 
-# Создание таблицы карточек продуктов
+# Создание таблицы карточек с привязкой к поставщику
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS cards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     quantity INTEGER NOT NULL,
-    price REAL NOT NULL
+    price REAL NOT NULL,
+    supplier_id INTEGER NOT NULL,
+    FOREIGN KEY (supplier_id) REFERENCES users(id)
 )
 ''')
 
 # Добавление тестовых пользователей
 cursor.execute('''
-INSERT INTO users (username, password, role)
+INSERT OR IGNORE INTO users (username, password, role)
 VALUES (?, ?, ?)
 ''', ('vova', '1234', 'business'))
 
 cursor.execute('''
-INSERT INTO users (username, password, role)
-VALUES (?, ?, ?)
-''', ('katya', '1234', 'business'))
-
-cursor.execute('''
-INSERT INTO users (username, password, role)
+INSERT OR IGNORE INTO users (username, password, role)
 VALUES (?, ?, ?)
 ''', ('gosha', '1234', 'supplier'))
 
 cursor.execute('''
-INSERT INTO users (username, password, role)
+INSERT OR IGNORE INTO users (username, password, role)
 VALUES (?, ?, ?)
-''', ('igor', '1234', 'supplier'))
+''', ('anna', '5678', 'supplier'))
 
 conn.commit()
 conn.close()
 
-print("База данных обновлена.")
+print("База данных инициализирована.")

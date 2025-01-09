@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify
+from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response
 import sqlite3
 
 app = Flask(__name__)
@@ -18,28 +18,28 @@ def check_user(username, password):
         print(f"Ошибка в check_user: {e}")
         return None
 
-# Функция для получения всех карточек
-def get_cards():
+# Функция для получения карточек текущего поставщика
+def get_cards_by_supplier(supplier_id):
     try:
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM cards')  # Получаем все карточки
+        cursor.execute('SELECT * FROM cards WHERE supplier_id = ?', (supplier_id,))
         cards = cursor.fetchall()
         conn.close()
         return cards
     except Exception as e:
-        print(f"Ошибка при получении карточек: {e}")
+        print(f"Ошибка при получении карточек поставщика: {e}")
         return []
 
 # Функция для сохранения карточки в базе данных
-def save_card_to_db(name, quantity, price):
+def save_card_to_db(name, quantity, price, supplier_id):
     try:
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO cards (name, quantity, price)
-            VALUES (?, ?, ?)
-        ''', (name, quantity, price))
+            INSERT INTO cards (name, quantity, price, supplier_id)
+            VALUES (?, ?, ?, ?)
+        ''', (name, quantity, price, supplier_id))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -56,10 +56,10 @@ def login():
 
         user = check_user(username, password)
         if user:
-            if user['role'] == 'supplier':
-                return redirect(url_for('supplier_page'))
-            elif user['role'] == 'business':
-                return redirect(url_for('business_page'))
+            response = make_response(redirect(url_for('supplier_page') if user['role'] == 'supplier' else url_for('business_page')))
+            response.set_cookie('username', username)
+            response.set_cookie('password', password)
+            return response
         else:
             return render_template('login.html', error="Invalid username or password")
 
@@ -67,24 +67,32 @@ def login():
 
 @app.route('/supplier', methods=['GET', 'POST'])
 def supplier_page():
+    # Проверяем текущего пользователя
+    user = check_user(request.cookies.get('username'), request.cookies.get('password'))
+    if not user or user['role'] != 'supplier':
+        return redirect(url_for('login'))
+
+    supplier_id = user['id']
+
     if request.method == 'POST':
         name = request.form.get('name')
         quantity = request.form.get('quantity')
         price = request.form.get('price')
 
         if name and quantity and price:
-            save_card_to_db(name, quantity, float(price))
+            save_card_to_db(name, quantity, float(price), supplier_id)
             return redirect(url_for('supplier_page'))
         else:
-            cards = get_cards()
+            cards = get_cards_by_supplier(supplier_id)
             return render_template('mainSupply.html', cards=cards, error="All fields are required!")
 
-    cards = get_cards()
+    cards = get_cards_by_supplier(supplier_id)
     return render_template('mainSupply.html', cards=cards)
 
 @app.route('/business')
 def business_page():
-    return render_template('mainBusiness.html')
+    cards = get_cards()
+    return render_template('mainBusiness.html', cards=cards)
 
 @app.route('/api/cards', methods=['GET'])
 def api_get_cards():
@@ -95,7 +103,6 @@ def api_get_cards():
         cards = cursor.fetchall()
         conn.close()
 
-        # Преобразуем карточки в список словарей для передачи в JSON
         cards_list = [{'id': card[0], 'name': card[1], 'quantity': card[2], 'price': card[3]} for card in cards]
         return jsonify(cards_list), 200
     except Exception as e:
