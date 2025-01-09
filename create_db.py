@@ -33,7 +33,17 @@ VALUES (?, ?, ?)
 cursor.execute('''
 INSERT INTO users (username, password, role)
 VALUES (?, ?, ?)
+''', ('katya', '1234', 'business'))
+
+cursor.execute('''
+INSERT INTO users (username, password, role)
+VALUES (?, ?, ?)
 ''', ('gosha', '1234', 'supplier'))
+
+cursor.execute('''
+INSERT INTO users (username, password, role)
+VALUES (?, ?, ?)
+''', ('igor', '1234', 'business'))
 
 conn.commit()
 conn.close()
