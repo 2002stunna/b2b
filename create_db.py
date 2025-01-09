@@ -47,6 +47,14 @@ INSERT OR IGNORE INTO users (username, password, role)
 VALUES (?, ?, ?)
 ''', ('katya', '1234', 'supplier'))
 
+# Добавляем тестовые карточки
+cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
+               ('Product A', 10, 99.99, 1))
+cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
+               ('Product B', 20, 49.99, 2))
+cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
+               ('Product C', 30, 19.99, 1))
+
 conn.commit()
 conn.close()
 

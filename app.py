@@ -76,20 +76,22 @@ def supplier_page():
         return redirect(url_for('login'))
 
     supplier_id = user['id']
+    print(f"[DEBUG] Текущий поставщик ID: {supplier_id}")  # Отладка
 
     if request.method == 'POST':
         name = request.form.get('name')
         quantity = request.form.get('quantity')
         price = request.form.get('price')
 
+        print(f"[DEBUG] Добавляем товар: {name}, {quantity}, {price}, Поставщик: {supplier_id}")  # Отладка
+
         if name and quantity and price:
             save_card_to_db(name, quantity, float(price), supplier_id)
             return redirect(url_for('supplier_page'))
-        else:
-            cards = get_cards_by_supplier(supplier_id)
-            return render_template('mainSupply.html', cards=cards, error="All fields are required!", username=username)
 
     cards = get_cards_by_supplier(supplier_id)
+    print(f"[DEBUG] Карточки для поставщика {supplier_id}: {cards}")  # Отладка
+
     return render_template('mainSupply.html', cards=cards, username=username)
 
 if __name__ == '__main__':
