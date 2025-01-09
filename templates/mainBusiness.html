@@ -3,18 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business</title>
+    <title>Business Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .cards-container {
+            width: 100%;
+            max-width: 600px;
+        }
+        .card {
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            background-color: #fff;
+        }
+        .card h2, .card p {
+            margin: 0;
+            margin-bottom: 5px;
+        }
+    </style>
 </head>
 <body>
     <h1>Business Dashboard</h1>
-    <div>
-        {% for card in cards %}
-        <div style="border: 1px solid #ccc; padding: 10px; margin: 10px;">
-            <h2>{{ card[1] }}</h2>
-            <p>Quantity: {{ card[2] }}</p>
-            <p>Price: ${{ card[3] }}</p>
-        </div>
-        {% endfor %}
-    </div>
+    <div class="cards-container" id="cards-container"></div>
+
+    <script>
+        const cardsContainer = document.getElementById('cards-container');
+
+        // Функция для получения карточек с сервера
+        async function fetchCards() {
+            try {
+                const response = await fetch('/api/cards');
+                if (response.ok) {
+                    const cards = await response.json();
+                    updateCards(cards);
+                } else {
+                    console.error('Failed to fetch cards');
+                }
+            } catch (error) {
+                console.error('Ошибка при получении карточек:', error);
+            }
+        }
+
+        // Функция для обновления карточек на странице
+        function updateCards(cards) {
+            cardsContainer.innerHTML = ''; // Очищаем контейнер
+            cards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+                cardElement.innerHTML = `
+                    <h2>${card.name}</h2>
+                    <p>Quantity: ${card.quantity}</p>
+                    <p>Price: $${card.price}</p>
+                `;
+                cardsContainer.appendChild(cardElement);
+            });
+        }
+
+        // Запрашиваем карточки каждые 5 секунд
+        setInterval(fetchCards, 5000);
+
+        // Первоначальная загрузка карточек
+        fetchCards();
+    </script>
 </body>
 </html>

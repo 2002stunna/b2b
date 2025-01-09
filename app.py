@@ -45,21 +45,6 @@ def save_card_to_db(name, quantity, price):
     except Exception as e:
         print(f"Ошибка при сохранении карточки: {e}")
 
-# Функция для обновления карточки
-def update_card(card_id, name, quantity, price):
-    try:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE cards
-            SET name = ?, quantity = ?, price = ?
-            WHERE id = ?
-        ''', (name, quantity, price, card_id))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"Ошибка при обновлении карточки: {e}")
-
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -97,21 +82,25 @@ def supplier_page():
     cards = get_cards()
     return render_template('mainSupply.html', cards=cards)
 
-@app.route('/edit_card/<int:card_id>', methods=['POST'])
-def edit_card(card_id):
-    name = request.form.get('name')
-    quantity = request.form.get('quantity')
-    price = request.form.get('price')
-
-    if name and quantity and price:
-        update_card(card_id, name, quantity, float(price))
-        return redirect(url_for('supplier_page'))
-    return "All fields are required.", 400
-
 @app.route('/business')
 def business_page():
-    cards = get_cards()
-    return render_template('mainBusiness.html', cards=cards)
+    return render_template('mainBusiness.html')
+
+@app.route('/api/cards', methods=['GET'])
+def api_get_cards():
+    try:
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cards')
+        cards = cursor.fetchall()
+        conn.close()
+
+        # Преобразуем карточки в список словарей для передачи в JSON
+        cards_list = [{'id': card[0], 'name': card[1], 'quantity': card[2], 'price': card[3]} for card in cards]
+        return jsonify(cards_list), 200
+    except Exception as e:
+        print(f"Ошибка при получении карточек через API: {e}")
+        return jsonify({'error': 'Failed to fetch cards'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
