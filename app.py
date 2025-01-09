@@ -18,7 +18,7 @@ def check_user(username, password):
         print(f"Ошибка в check_user: {e}")
         return None
 
-# Функция для получения карточек текущего поставщика
+# Функция для получения карточек конкретного поставщика
 def get_cards_by_supplier(supplier_id):
     try:
         conn = sqlite3.connect('users.db')
@@ -45,19 +45,7 @@ def save_card_to_db(name, quantity, price, supplier_id):
     except Exception as e:
         print(f"Ошибка при сохранении карточки: {e}")
 
-# Функция для получения всех карточек
-def get_cards():
-    try:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM cards')
-        cards = cursor.fetchall()
-        conn.close()
-        return cards
-    except Exception as e:
-        print(f"Ошибка при получении карточек: {e}")
-        return []
-
+# Главная страница для входа
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -70,14 +58,15 @@ def login():
         user = check_user(username, password)
         if user:
             response = make_response(redirect(url_for('supplier_page') if user['role'] == 'supplier' else url_for('business_page')))
-            response.set_cookie('username', username)  # Устанавливаем куки
-            response.set_cookie('password', password)  # Устанавливаем куки
+            response.set_cookie('username', username)  # Устанавливаем cookie
+            response.set_cookie('password', password)  # Устанавливаем cookie
             return response
         else:
             return render_template('login.html', error="Invalid username or password", username=None)
 
     return render_template('login.html', username=None)
 
+# Страница для поставщика
 @app.route('/supplier', methods=['GET', 'POST'])
 def supplier_page():
     # Получаем логин пользователя из cookie
@@ -106,9 +95,9 @@ def supplier_page():
     cards = get_cards_by_supplier(supplier_id)
     return render_template('mainSupply.html', cards=cards, username=username)
 
+# Страница для покупателя
 @app.route('/business')
 def business_page():
-    # Получаем логин пользователя из cookie
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
@@ -116,6 +105,7 @@ def business_page():
     cards = get_cards()
     return render_template('mainBusiness.html', cards=cards, username=username)
 
+# API для получения карточек
 @app.route('/api/cards', methods=['GET'])
 def api_get_cards():
     try:

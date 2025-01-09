@@ -19,6 +19,8 @@
             position: absolute;
             top: 10px;
             right: 20px;
+            font-size: 14px;
+            color: #666;
         }
         .form-container, .cards-container {
             width: 100%;
@@ -39,13 +41,14 @@
     </style>
 </head>
 <body>
-    <!-- Логин пользователя -->
+    <!-- Заголовок с именем пользователя -->
     <div class="header">
         Logged in as: <strong>{{ username }}</strong>
     </div>
 
     <h1>Supplier Dashboard</h1>
 
+    <!-- Форма для добавления продукта -->
     <div class="form-container">
         <form method="POST">
             <input type="text" name="name" placeholder="Product Name" required>
@@ -58,6 +61,7 @@
         {% endif %}
     </div>
 
+    <!-- Список карточек -->
     <div class="cards-container">
         <h2>Your Products</h2>
         {% for card in cards %}
