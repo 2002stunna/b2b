@@ -43,7 +43,7 @@ VALUES (?, ?, ?)
 cursor.execute('''
 INSERT INTO users (username, password, role)
 VALUES (?, ?, ?)
-''', ('igor', '1234', 'business'))
+''', ('igor', '1234', 'supplier'))
 
 conn.commit()
 conn.close()
