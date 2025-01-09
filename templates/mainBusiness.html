@@ -15,6 +15,11 @@
             background-color: #f8f9fa;
             color: #333;
         }
+        .header {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+        }
         .cards-container {
             width: 100%;
             max-width: 600px;
@@ -33,13 +38,17 @@
     </style>
 </head>
 <body>
+    <!-- Логин пользователя -->
+    <div class="header">
+        Logged in as: <strong>{{ username }}</strong>
+    </div>
+
     <h1>Business Dashboard</h1>
     <div class="cards-container" id="cards-container"></div>
 
     <script>
         const cardsContainer = document.getElementById('cards-container');
 
-        // Функция для получения карточек с сервера
         async function fetchCards() {
             try {
                 const response = await fetch('/api/cards');
@@ -54,9 +63,8 @@
             }
         }
 
-        // Функция для обновления карточек на странице
         function updateCards(cards) {
-            cardsContainer.innerHTML = ''; // Очищаем контейнер
+            cardsContainer.innerHTML = '';
             cards.forEach(card => {
                 const cardElement = document.createElement('div');
                 cardElement.classList.add('card');
@@ -69,10 +77,7 @@
             });
         }
 
-        // Запрашиваем карточки каждые 5 секунд
         setInterval(fetchCards, 5000);
-
-        // Первоначальная загрузка карточек
         fetchCards();
     </script>
 </body>

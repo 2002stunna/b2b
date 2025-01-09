@@ -15,6 +15,11 @@
             background-color: #f8f9fa;
             color: #333;
         }
+        .header {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+        }
         .form-container, .cards-container {
             width: 100%;
             max-width: 600px;
@@ -34,9 +39,13 @@
     </style>
 </head>
 <body>
+    <!-- Логин пользователя -->
+    <div class="header">
+        Logged in as: <strong>{{ username }}</strong>
+    </div>
+
     <h1>Supplier Dashboard</h1>
 
-    <!-- Форма для добавления продукта -->
     <div class="form-container">
         <form method="POST">
             <input type="text" name="name" placeholder="Product Name" required>
@@ -49,7 +58,6 @@
         {% endif %}
     </div>
 
-    <!-- Список карточек -->
     <div class="cards-container">
         <h2>Your Products</h2>
         {% for card in cards %}

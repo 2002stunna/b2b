@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, jsonify, make_response
+from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify
 import sqlite3
 
 app = Flask(__name__)
@@ -45,6 +45,19 @@ def save_card_to_db(name, quantity, price, supplier_id):
     except Exception as e:
         print(f"Ошибка при сохранении карточки: {e}")
 
+# Функция для получения всех карточек
+def get_cards():
+    try:
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cards')
+        cards = cursor.fetchall()
+        conn.close()
+        return cards
+    except Exception as e:
+        print(f"Ошибка при получении карточек: {e}")
+        return []
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -52,23 +65,27 @@ def login():
         password = request.form.get('password')
 
         if not username or not password:
-            return render_template('login.html', error="Both fields are required!")
+            return render_template('login.html', error="Both fields are required!", username=None)
 
         user = check_user(username, password)
         if user:
             response = make_response(redirect(url_for('supplier_page') if user['role'] == 'supplier' else url_for('business_page')))
-            response.set_cookie('username', username)
-            response.set_cookie('password', password)
+            response.set_cookie('username', username)  # Устанавливаем куки
+            response.set_cookie('password', password)  # Устанавливаем куки
             return response
         else:
-            return render_template('login.html', error="Invalid username or password")
+            return render_template('login.html', error="Invalid username or password", username=None)
 
-    return render_template('login.html')
+    return render_template('login.html', username=None)
 
 @app.route('/supplier', methods=['GET', 'POST'])
 def supplier_page():
-    # Проверяем текущего пользователя
-    user = check_user(request.cookies.get('username'), request.cookies.get('password'))
+    # Получаем логин пользователя из cookie
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+
+    user = check_user(username, request.cookies.get('password'))
     if not user or user['role'] != 'supplier':
         return redirect(url_for('login'))
 
@@ -84,15 +101,20 @@ def supplier_page():
             return redirect(url_for('supplier_page'))
         else:
             cards = get_cards_by_supplier(supplier_id)
-            return render_template('mainSupply.html', cards=cards, error="All fields are required!")
+            return render_template('mainSupply.html', cards=cards, error="All fields are required!", username=username)
 
     cards = get_cards_by_supplier(supplier_id)
-    return render_template('mainSupply.html', cards=cards)
+    return render_template('mainSupply.html', cards=cards, username=username)
 
 @app.route('/business')
 def business_page():
+    # Получаем логин пользователя из cookie
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+
     cards = get_cards()
-    return render_template('mainBusiness.html', cards=cards)
+    return render_template('mainBusiness.html', cards=cards, username=username)
 
 @app.route('/api/cards', methods=['GET'])
 def api_get_cards():
