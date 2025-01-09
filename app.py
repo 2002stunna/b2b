@@ -96,12 +96,22 @@ def supplier_page():
 
 @app.route('/business')
 def business_page():
-    # Получаем логин пользователя из cookie
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
 
-    cards = get_cards()
+    try:
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cards')
+        cards = cursor.fetchall()
+        conn.close()
+        if not cards:
+            print("[DEBUG] Нет карточек в базе данных.")
+    except Exception as e:
+        print(f"[ERROR] Ошибка при получении карточек: {e}")
+        cards = []
+
     return render_template('mainBusiness.html', cards=cards, username=username)
 
 if __name__ == '__main__':
