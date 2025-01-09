@@ -18,12 +18,12 @@ def check_user(username, password):
         print(f"Ошибка в check_user: {e}")
         return None
 
-# Получение всех карточек из базы данных
-def get_all_cards():
+# Функция для получения всех карточек
+def get_cards():
     try:
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM cards')
+        cursor.execute('SELECT * FROM cards')  # Получаем все карточки
         cards = cursor.fetchall()
         conn.close()
         return cards
@@ -31,7 +31,7 @@ def get_all_cards():
         print(f"Ошибка при получении карточек: {e}")
         return []
 
-# Сохранение карточки в базе данных
+# Функция для сохранения карточки в базе данных
 def save_card_to_db(name, quantity, price):
     try:
         conn = sqlite3.connect('users.db')
@@ -44,6 +44,21 @@ def save_card_to_db(name, quantity, price):
         conn.close()
     except Exception as e:
         print(f"Ошибка при сохранении карточки: {e}")
+
+# Функция для обновления карточки
+def update_card(card_id, name, quantity, price):
+    try:
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE cards
+            SET name = ?, quantity = ?, price = ?
+            WHERE id = ?
+        ''', (name, quantity, price, card_id))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Ошибка при обновлении карточки: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -76,13 +91,26 @@ def supplier_page():
             save_card_to_db(name, quantity, float(price))
             return redirect(url_for('supplier_page'))
         else:
-            return render_template('mainSupply.html', error="All fields are required!")
+            cards = get_cards()
+            return render_template('mainSupply.html', cards=cards, error="All fields are required!")
 
-    return render_template('mainSupply.html')
+    cards = get_cards()
+    return render_template('mainSupply.html', cards=cards)
+
+@app.route('/edit_card/<int:card_id>', methods=['POST'])
+def edit_card(card_id):
+    name = request.form.get('name')
+    quantity = request.form.get('quantity')
+    price = request.form.get('price')
+
+    if name and quantity and price:
+        update_card(card_id, name, quantity, float(price))
+        return redirect(url_for('supplier_page'))
+    return "All fields are required.", 400
 
 @app.route('/business')
 def business_page():
-    cards = get_all_cards()
+    cards = get_cards()
     return render_template('mainBusiness.html', cards=cards)
 
 if __name__ == '__main__':
