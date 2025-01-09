@@ -19,10 +19,13 @@
             position: absolute;
             top: 10px;
             right: 20px;
+            font-size: 14px;
+            color: #666;
         }
         .cards-container {
             width: 100%;
             max-width: 600px;
+            margin-top: 20px;
         }
         .card {
             border: 1px solid #ccc;
@@ -47,11 +50,13 @@
     <div class="cards-container" id="cards-container"></div>
 
     <script>
+        // Контейнер для карточек
         const cardsContainer = document.getElementById('cards-container');
 
+        // Функция для получения карточек с сервера
         async function fetchCards() {
             try {
-                const response = await fetch('/api/cards');
+                const response = await fetch('/api/cards'); // Запрос к API
                 if (response.ok) {
                     const cards = await response.json();
                     updateCards(cards);
@@ -63,22 +68,28 @@
             }
         }
 
+        // Функция для обновления карточек на странице
         function updateCards(cards) {
-            cardsContainer.innerHTML = '';
-            cards.forEach(card => {
-                const cardElement = document.createElement('div');
-                cardElement.classList.add('card');
-                cardElement.innerHTML = `
-                    <h2>${card.name}</h2>
-                    <p>Quantity: ${card.quantity}</p>
-                    <p>Price: $${card.price}</p>
-                `;
-                cardsContainer.appendChild(cardElement);
-            });
+            cardsContainer.innerHTML = ''; // Очищаем контейнер
+            if (cards.length > 0) {
+                cards.forEach(card => {
+                    const cardElement = document.createElement('div');
+                    cardElement.classList.add('card');
+                    cardElement.innerHTML = `
+                        <h2>${card.name}</h2>
+                        <p>Quantity: ${card.quantity}</p>
+                        <p>Price: $${card.price}</p>
+                    `;
+                    cardsContainer.appendChild(cardElement);
+                });
+            } else {
+                cardsContainer.innerHTML = '<p>No products available at the moment.</p>';
+            }
         }
 
-        setInterval(fetchCards, 5000);
+        // Первоначальная загрузка карточек и их обновление каждые 5 секунд
         fetchCards();
+        setInterval(fetchCards, 5000);
     </script>
 </body>
 </html>
