@@ -101,21 +101,21 @@ def business_page():
     if not username:
         return redirect(url_for('login'))
 
-    cards = get_cards()
+    # Функция для получения всех карточек
+    def get_all_cards():
+        try:
+            conn = sqlite3.connect('users.db')
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM cards')
+            cards = cursor.fetchall()
+            conn.close()
+            return cards
+        except Exception as e:
+            print(f"Ошибка при получении всех карточек: {e}")
+            return []
+
+    cards = get_all_cards()
     return render_template('mainBusiness.html', cards=cards, username=username)
 
-# API для получения карточек
-@app.route('/api/cards', methods=['GET'])
-def get_cards_by_supplier(supplier_id):
-    try:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM cards WHERE supplier_id = ?', (supplier_id,))
-        cards = cursor.fetchall()
-        conn.close()
-        return cards
-    except Exception as e:
-        print(f"Ошибка при получении карточек поставщика: {e}")
-        return []
 if __name__ == '__main__':
     app.run(debug=True)
