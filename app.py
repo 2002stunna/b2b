@@ -69,7 +69,6 @@ def login():
 # Страница для поставщика
 @app.route('/supplier', methods=['GET', 'POST'])
 def supplier_page():
-    # Получаем логин пользователя из cookie
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
@@ -107,19 +106,16 @@ def business_page():
 
 # API для получения карточек
 @app.route('/api/cards', methods=['GET'])
-def api_get_cards():
+def get_cards_by_supplier(supplier_id):
     try:
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM cards')
+        cursor.execute('SELECT * FROM cards WHERE supplier_id = ?', (supplier_id,))
         cards = cursor.fetchall()
         conn.close()
-
-        cards_list = [{'id': card[0], 'name': card[1], 'quantity': card[2], 'price': card[3]} for card in cards]
-        return jsonify(cards_list), 200
+        return cards
     except Exception as e:
-        print(f"Ошибка при получении карточек через API: {e}")
-        return jsonify({'error': 'Failed to fetch cards'}), 500
-
+        print(f"Ошибка при получении карточек поставщика: {e}")
+        return []
 if __name__ == '__main__':
     app.run(debug=True)
