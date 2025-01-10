@@ -1,6 +1,5 @@
 import sqlite3
 
-# Подключение к базе данных
 conn = sqlite3.connect('Main.db')
 cursor = conn.cursor()
 
@@ -32,7 +31,7 @@ CREATE TABLE IF NOT EXISTS cards (
 )
 ''')
 
-# ------------------- НОВАЯ таблица pending_users -------------------
+# ------------------- Таблица pending_users с полем status -------------------
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS pending_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,7 +43,8 @@ CREATE TABLE IF NOT EXISTS pending_users (
     KPP TEXT,
     OGRN TEXT,
     LegalAddress TEXT,
-    Contact TEXT
+    Contact TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' -- Новое поле
 )
 ''')
 
@@ -69,7 +69,7 @@ INSERT OR IGNORE INTO users (username, password, role, LegalName, INN, KPP, OGRN
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''', ('katya', '1234', 'supplier', 'ООО Катя', '4455667788', '778899001', '4455667788990', 'г. Новосибирск, ул. Катя, д. 4', 'katya@mail.com'))
 
-# --- Пользователь службы безопасности ---
+# Сотрудник службы безопасности
 cursor.execute('''
 INSERT OR IGNORE INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

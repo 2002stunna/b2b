@@ -1,3 +1,4 @@
+<!-- templates/Registration.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,56 +8,102 @@
 <body>
     <h1>Регистрация</h1>
 
-    {% if success_message %}
-        <p style="color: green;">{{ success_message }}</p>
-    {% endif %}
+    <!-- Если при POST что-то пошло не так -->
     {% if error %}
-        <p style="color: red;">{{ error }}</p>
+        <p style="color:red">{{ error }}</p>
     {% endif %}
 
-    <form action="/register" method="POST">
-        <p>
-            <label>Username:</label><br>
-            <input type="text" name="username" required>
-        </p>
-        <p>
-            <label>Password:</label><br>
-            <input type="password" name="password" required>
-        </p>
-        <p>
-            <label>Role:</label><br>
-            <select name="role" required>
-                <option value="">-- Выберите роль --</option>
-                <option value="supplier">Поставщик</option>
-                <option value="business">Бизнес</option>
-            </select>
-        </p>
-        <p>
-            <label>Полное наименование (Legal Name):</label><br>
-            <input type="text" name="legal_name" required>
-        </p>
-        <p>
-            <label>ИНН:</label><br>
-            <input type="text" name="inn" required>
-        </p>
-        <p>
-            <label>КПП:</label><br>
-            <input type="text" name="kpp" required>
-        </p>
-        <p>
-            <label>ОГРН:</label><br>
-            <input type="text" name="ogrn" required>
-        </p>
-        <p>
-            <label>Юридический адрес:</label><br>
-            <input type="text" name="legal_address" required>
-        </p>
-        <p>
-            <label>Контактные данные:</label><br>
-            <input type="text" name="contact" required>
-        </p>
+    <!-- Если заявка была сохранена, back-end выдал нам pending_id -->
+    {% if pending_id %}
+        <p>Заявка отправлена! Ожидайте решения.</p>
+        <div id="status-message" style="color:blue;">Статус: в ожидании...</div>
 
-        <button type="submit">Отправить</button>
-    </form>
+        <script>
+        // Каждые 3 секунды опрашиваем сервер: /check_status/ID
+        const pendingId = {{ pending_id }};
+        const statusDiv = document.getElementById('status-message');
+
+        async function checkStatus() {
+            try {
+                const resp = await fetch(`/check_status/${pendingId}`);
+                if (resp.status === 200) {
+                    const data = await resp.json();
+                    // data = {status: 'pending'|'approved'|'rejected'|'not_found'}
+                    if (data.status === 'approved') {
+                        statusDiv.style.color = 'green';
+                        statusDiv.textContent = 'Ваша заявка одобрена! Теперь вы можете авторизоваться.';
+                        clearInterval(intervalId);
+                    } else if (data.status === 'rejected') {
+                        statusDiv.style.color = 'red';
+                        statusDiv.textContent = 'Ваша заявка отклонена.';
+                        clearInterval(intervalId);
+                    } else if (data.status === 'pending') {
+                        statusDiv.textContent = 'Статус: в ожидании...';
+                    } else {
+                        // not_found или что-то ещё
+                        statusDiv.textContent = 'Не найдена заявка';
+                        clearInterval(intervalId);
+                    }
+                } else {
+                    statusDiv.textContent = 'Ошибка при проверке статуса';
+                }
+            } catch (error) {
+                statusDiv.textContent = 'Сетевая ошибка при проверке статуса';
+            }
+        }
+
+        const intervalId = setInterval(checkStatus, 3000);
+        </script>
+    {% else %}
+        <!-- Форма регистрации, если нет pending_id -->
+        {% if success_message %}
+            <p style="color:green">{{ success_message }}</p>
+        {% endif %}
+
+        <form action="/register" method="POST">
+            <p>
+                <label>Username:</label><br>
+                <input type="text" name="username" required>
+            </p>
+            <p>
+                <label>Password:</label><br>
+                <input type="password" name="password" required>
+            </p>
+            <p>
+                <label>Role:</label><br>
+                <select name="role" required>
+                    <option value="">-- Выберите роль --</option>
+                    <option value="supplier">Поставщик</option>
+                    <option value="business">Бизнес</option>
+                </select>
+            </p>
+            <p>
+                <label>Полное наименование (Legal Name):</label><br>
+                <input type="text" name="legal_name" required>
+            </p>
+            <p>
+                <label>ИНН:</label><br>
+                <input type="text" name="inn" required>
+            </p>
+            <p>
+                <label>КПП:</label><br>
+                <input type="text" name="kpp" required>
+            </p>
+            <p>
+                <label>ОГРН:</label><br>
+                <input type="text" name="ogrn" required>
+            </p>
+            <p>
+                <label>Юридический адрес:</label><br>
+                <input type="text" name="legal_address" required>
+            </p>
+            <p>
+                <label>Контактные данные:</label><br>
+                <input type="text" name="contact" required>
+            </p>
+
+            <button type="submit">Отправить</button>
+        </form>
+    {% endif %}
 </body>
 </html>

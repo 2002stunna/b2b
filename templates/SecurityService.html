@@ -1,3 +1,4 @@
+<!-- templates/SecurityService.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -16,26 +17,51 @@
             <tr>
                 <th>ID</th>
                 <th>Username</th>
+                <th>Password</th>
                 <th>Role</th>
                 <th>LegalName</th>
+                <th>INN</th>
+                <th>KPP</th>
+                <th>OGRN</th>
+                <th>LegalAddress</th>
+                <th>Contact</th>
+                <th>Status</th>
                 <th>Actions</th>
             </tr>
             {% for row in pending_list %}
-            <!-- row: (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact) -->
+            <!-- row = (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact, status) -->
             <tr>
                 <td>{{ row[0] }}</td>
                 <td>{{ row[1] }}</td>
+                <td>{{ row[2] }}</td>
                 <td>{{ row[3] }}</td>
                 <td>{{ row[4] }}</td>
+                <td>{{ row[5] }}</td>
+                <td>{{ row[6] }}</td>
+                <td>{{ row[7] }}</td>
+                <td>{{ row[8] }}</td>
+                <td>{{ row[9] }}</td>
                 <td>
-                    <form action="{{ url_for('approve_pending') }}" method="POST" style="display:inline;">
-                        <input type="hidden" name="pending_id" value="{{ row[0] }}">
-                        <button type="submit">Принять</button>
-                    </form>
-                    <form action="{{ url_for('reject_pending') }}" method="POST" style="display:inline;">
-                        <input type="hidden" name="pending_id" value="{{ row[0] }}">
-                        <button type="submit">Отклонить</button>
-                    </form>
+                    {% if row[10] == 'pending' %}
+                        <span style="color:orange;">Pending</span>
+                    {% elif row[10] == 'approved' %}
+                        <span style="color:green;">Approved</span>
+                    {% elif row[10] == 'rejected' %}
+                        <span style="color:red;">Rejected</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <!-- Показываем кнопки, только если заявка в pending -->
+                    {% if row[10] == 'pending' %}
+                        <form action="{{ url_for('approve_pending') }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="pending_id" value="{{ row[0] }}">
+                            <button type="submit">Принять</button>
+                        </form>
+                        <form action="{{ url_for('reject_pending') }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="pending_id" value="{{ row[0] }}">
+                            <button type="submit">Отклонить</button>
+                        </form>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

@@ -3,8 +3,9 @@ import sqlite3
 
 app = Flask(__name__)
 
+
 # -----------------------------------------------------------------------------
-# 1. Проверка пользователя в базе (исходный код)
+# 1. Проверка пользователя (как было)
 # -----------------------------------------------------------------------------
 def check_user(username, password):
     try:
@@ -14,78 +15,104 @@ def check_user(username, password):
         user = cursor.fetchone()
         conn.close()
         if user:
-            return {'id': user[0], 'username': user[1], 'role': user[3]}  # Возвращаем {id, username, role}
+            return {'id': user[0], 'username': user[1], 'role': user[3]}
         return None
     except Exception as e:
         print(f"Ошибка в check_user: {e}")
         return None
 
 # -----------------------------------------------------------------------------
-# 2. Сохранение заявки в pending_users
+# 2. Сохранение заявки
 # -----------------------------------------------------------------------------
 def save_pending_user(username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact):
     """
-    Запись в таблицу pending_users
+    Сохраняем в таблицу pending_users, статус по умолчанию 'pending'.
+    Возвращаем ID новой записи, чтобы фронт мог отслеживать состояние.
     """
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO pending_users
-            (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         ''', (username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact))
+        new_id = cursor.lastrowid  # ID добавленной записи
+        conn.commit()
+        conn.close()
+        return new_id
+    except Exception as e:
+        print(f"Ошибка при сохранении пользователя в pending_users: {e}")
+        return None  # Вернём None, если не удалось
+
+# -----------------------------------------------------------------------------
+# 3. Обновить статус заявки (pending -> approved/rejected)
+# -----------------------------------------------------------------------------
+def update_pending_status(pending_id, new_status):
+    """
+    Устанавливаем status='approved' или 'rejected' в pending_users
+    """
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('UPDATE pending_users SET status=? WHERE id=?', (new_status, pending_id))
         conn.commit()
         conn.close()
         return True
     except Exception as e:
-        print(f"Ошибка при сохранении пользователя в pending_users: {e}")
+        print(f"Ошибка при обновлении статуса заявки: {e}")
         return False
 
 # -----------------------------------------------------------------------------
-# 3. Перенос из pending_users в users
+# 4. Перенести запись (при approve) в users
 # -----------------------------------------------------------------------------
-def approve_pending_user(pending_id):
+def move_to_users(pending_id):
+    """
+    Берём запись из pending_users, переносим в users.
+    НЕ удаляем, а только ставим status='approved', чтобы пользователь мог отследить.
+    (Если хотите удалять, можно cursor.execute('DELETE FROM pending_users ...')
+    """
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
-        # Найдём запись в pending_users
+
         cursor.execute('SELECT * FROM pending_users WHERE id=?', (pending_id,))
         row = cursor.fetchone()
         if not row:
             conn.close()
-            return "Заявка не найдена."
+            return False, "Не найдена заявка"
 
-        # row = (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
+        # row = (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact, status)
+        # Вставим в users
         cursor.execute('''
             INSERT INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9]))
 
-        # Удаляем из pending_users
-        cursor.execute('DELETE FROM pending_users WHERE id=?', (pending_id,))
         conn.commit()
         conn.close()
-        return "Заявка одобрена и пользователь добавлен в базу."
+        return True, "Пользователь добавлен в таблицу users"
     except Exception as e:
-        return f"Ошибка при одобрении заявки: {e}"
+        print(f"Ошибка при переносе в users: {e}")
+        return False, str(e)
 
 # -----------------------------------------------------------------------------
-# 4. Отклонить заявку
+# 5. Получение статуса заявки
 # -----------------------------------------------------------------------------
-def reject_pending_user(pending_id):
+def get_pending_status(pending_id):
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM pending_users WHERE id=?', (pending_id,))
-        conn.commit()
+        cursor.execute('SELECT status FROM pending_users WHERE id=?', (pending_id,))
+        row = cursor.fetchone()
         conn.close()
-        return "Заявка отклонена и удалена."
+        return row[0] if row else None
     except Exception as e:
-        return f"Ошибка при отклонении заявки: {e}"
+        print(f"Ошибка в get_pending_status: {e}")
+        return None
 
 # -----------------------------------------------------------------------------
-# 5. Получение всех карточек (исходный код)
+# 6. Получение всех карточек (старый код)
 # -----------------------------------------------------------------------------
 def get_all_cards():
     try:
@@ -100,7 +127,7 @@ def get_all_cards():
         return []
 
 # -----------------------------------------------------------------------------
-# 6. Получение карточек поставщика (исходный код)
+# 7. Получение карточек поставщика (старый код)
 # -----------------------------------------------------------------------------
 def get_cards_by_supplier(supplier_id):
     try:
@@ -115,7 +142,7 @@ def get_cards_by_supplier(supplier_id):
         return []
 
 # -----------------------------------------------------------------------------
-# 7. Сохранение карточки
+# 8. Сохранение карточки (старый код)
 # -----------------------------------------------------------------------------
 def save_card_to_db(name, quantity, price, supplier_id):
     try:
@@ -129,7 +156,7 @@ def save_card_to_db(name, quantity, price, supplier_id):
         print(f"Ошибка при сохранении карточки: {e}")
 
 # -----------------------------------------------------------------------------
-# 8. Данные аккаунта пользователя
+# 9. Данные аккаунта (старый код)
 # -----------------------------------------------------------------------------
 def get_user_account(username):
     try:
@@ -148,7 +175,7 @@ def get_user_account(username):
         return None
 
 # -----------------------------------------------------------------------------
-# 9. LOGIN (добавили ветку role=security)
+# 10. Логин (добавлена ветка security)
 # -----------------------------------------------------------------------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -161,7 +188,6 @@ def login():
 
         user = check_user(username, password)
         if user:
-            # Перенаправление в зависимости от роли
             if user['role'] == 'supplier':
                 response = make_response(redirect(url_for('supplier_page')))
             elif user['role'] == 'security':
@@ -178,7 +204,7 @@ def login():
     return render_template('login.html', username=None)
 
 # -----------------------------------------------------------------------------
-# 10. SUPPLIER (исходный код)
+# 11. Страница поставщика
 # -----------------------------------------------------------------------------
 @app.route('/supplier', methods=['GET', 'POST'])
 def supplier_page():
@@ -205,18 +231,17 @@ def supplier_page():
     return render_template('mainSupply.html', cards=cards, username=username)
 
 # -----------------------------------------------------------------------------
-# 11. BUSINESS (исходный код)
+# 12. Страница бизнес-пользователя
 # -----------------------------------------------------------------------------
 @app.route('/business')
 def business_page():
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
-
     return render_template('mainBusiness.html', username=username)
 
 # -----------------------------------------------------------------------------
-# 12. API для получения карточек (исходный код)
+# 13. API для карточек
 # -----------------------------------------------------------------------------
 @app.route('/api/cards', methods=['GET'])
 def api_cards():
@@ -228,7 +253,7 @@ def api_cards():
         return jsonify({'error': 'Failed to fetch cards'}), 500
 
 # -----------------------------------------------------------------------------
-# 13. Страница аккаунта поставщика (исходный код)
+# 14. Аккаунт поставщика
 # -----------------------------------------------------------------------------
 @app.route('/supplier/account', methods=['GET'])
 def supplier_account():
@@ -256,7 +281,7 @@ def supplier_account():
     )
 
 # -----------------------------------------------------------------------------
-# 14. Регистрация. Сохраняем в pending_users
+# 15. Регистрация: возвращаем pending_id
 # -----------------------------------------------------------------------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -271,25 +296,31 @@ def register():
         legal_address = request.form.get('legal_address')
         contact = request.form.get('contact')
 
-        # Проверка, что поля заполнены
         if not all([username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact]):
             return render_template('Registration.html', error="All fields are required!")
 
-        # Пытаемся сохранить заявку в pending_users
-        success = save_pending_user(username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact)
-        if success:
-            return render_template('Registration.html', success_message="Ожидайте подтверждения заявки")
-        else:
-            # Если False, значит в консоли есть Exception
-            # Смотрим туда, чтобы узнать точную причину
+        new_id = save_pending_user(username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact)
+        if new_id is None:
             return render_template('Registration.html', error="Ошибка при сохранении заявки")
-
+        
+        # Если всё успешно, возвращаем страницу, но передаём pending_id
+        return render_template('Registration.html', pending_id=new_id)
     return render_template('Registration.html')
 
 # -----------------------------------------------------------------------------
-# 15. Страница SecurityService (для role=security). Показываем pending_users
+# 16. Маршрут для проверки статуса заявки (AJAX)
 # -----------------------------------------------------------------------------
-@app.route('/security-service', methods=['GET', 'POST'])
+@app.route('/check_status/<int:pending_id>', methods=['GET'])
+def check_status(pending_id):
+    status = get_pending_status(pending_id)
+    if status is None:
+        return jsonify({'status': 'not_found'}), 404
+    return jsonify({'status': status})
+
+# -----------------------------------------------------------------------------
+# 17. Страница SecurityService: показываем все поля
+# -----------------------------------------------------------------------------
+@app.route('/security-service')
 def security_service():
     username = request.cookies.get('username')
     if not username:
@@ -303,21 +334,24 @@ def security_service():
 
     conn = sqlite3.connect('Main.db')
     cursor = conn.cursor()
+    # Получаем ВСЁ из pending_users (включая status)
     cursor.execute('SELECT * FROM pending_users')
     pending_list = cursor.fetchall()
     conn.close()
 
+    # row структура: 
+    # (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact, status)
+
     return render_template('SecurityService.html', pending_list=pending_list, message=message)
 
 # -----------------------------------------------------------------------------
-# 16. Одобрение заявки
+# 18. Одобрить заявку (status = approved) и перенос в users
 # -----------------------------------------------------------------------------
 @app.route('/approve-pending', methods=['POST'])
 def approve_pending():
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
-
     user = check_user(username, request.cookies.get('password'))
     if not user or user['role'] != 'security':
         return redirect(url_for('login'))
@@ -326,18 +360,26 @@ def approve_pending():
     if not pending_id:
         return redirect(url_for('security_service'))
 
-    result_msg = approve_pending_user(pending_id)
-    return redirect(url_for('security_service', message=result_msg))
+    # 1. Меняем статус на approved
+    ok = update_pending_status(pending_id, 'approved')
+    if not ok:
+        return redirect(url_for('security_service', message="Ошибка при обновлении статуса"))
+
+    # 2. Переносим в users
+    success, msg = move_to_users(pending_id)
+    if not success:
+        return redirect(url_for('security_service', message=msg))
+
+    return redirect(url_for('security_service', message="Заявка одобрена!"))
 
 # -----------------------------------------------------------------------------
-# 17. Отклонение заявки
+# 19. Отклонить заявку (status = rejected)
 # -----------------------------------------------------------------------------
 @app.route('/reject-pending', methods=['POST'])
 def reject_pending():
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
-
     user = check_user(username, request.cookies.get('password'))
     if not user or user['role'] != 'security':
         return redirect(url_for('login'))
@@ -346,11 +388,15 @@ def reject_pending():
     if not pending_id:
         return redirect(url_for('security_service'))
 
-    result_msg = reject_pending_user(pending_id)
-    return redirect(url_for('security_service', message=result_msg))
+    # Просто ставим статус = rejected (или можно удалить)
+    ok = update_pending_status(pending_id, 'rejected')
+    if not ok:
+        return redirect(url_for('security_service', message="Ошибка при отклонении заявки"))
+
+    return redirect(url_for('security_service', message="Заявка отклонена."))
 
 # -----------------------------------------------------------------------------
-# 18. Точка входа
+# 20. Запуск
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
     app.run(debug=True)
