@@ -109,11 +109,10 @@
                         <p>Quantity: ${card.quantity}</p>
                         <p>Price: $${card.price}</p>
 
-                        <!-- Если хотите кнопку "Купить", раскомментируйте:
+                        <!-- Кнопка "Купить" — теперь не закомментирована -->
                         <form action="/buy/${card.id}" method="GET">
                             <button type="submit" class="buy-button">Купить</button>
                         </form>
-                        -->
                     `;
                     cardsContainer.appendChild(cardElement);
                 });
