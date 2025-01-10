@@ -1,3 +1,4 @@
+<!-- templates/mainBusiness.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,6 +16,13 @@
             background-color: #f8f9fa;
             color: #333;
         }
+        /* Кнопка в левом верхнем углу */
+        .header-left {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+        }
+        /* Уже существующий стиль, привязанный к правому углу */
         .header {
             position: absolute;
             top: 10px;
@@ -41,12 +49,21 @@
     </style>
 </head>
 <body>
-    <!-- Логин пользователя -->
+
+    <!-- КНОПКА В ЛЕВОМ ВЕРХНЕМ УГЛУ -->
+    <div class="header-left">
+        <form action="/business/account" method="GET">
+            <button type="submit">{{ username }}</button>
+        </form>
+    </div>
+
+    <!-- УЖЕ БЫВШИЙ КОД: вывод логина в правом верхнем углу -->
     <div class="header">
         Logged in as: <strong>{{ username }}</strong>
     </div>
 
     <h1>Business Dashboard</h1>
+
     <div class="cards-container" id="cards-container"></div>
 
     <script>
