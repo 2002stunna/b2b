@@ -51,12 +51,14 @@
         .button-container {
             width: 100%;
             display: flex;
-            justify-content: center; /* Центрируем кнопку */
+            flex-direction: column; /* Размещаем кнопки в столбик */
+            gap: 10px; /* Отступ между кнопками */
+            justify-content: center; /* Центрируем кнопки */
         }
-        .login-button {
+        .login-button, .register-button {
             width: 100%; /* Кнопка занимает всю ширину контейнера */
             padding: 10px;
-            margin-top: 20px;
+            margin-top: 10px;
             background-color: #ffffff;
             border: none;
             color: black;
@@ -64,7 +66,7 @@
             cursor: pointer;
             font-size: 16px;
         }
-        .login-button:hover {
+        .login-button:hover, .register-button:hover {
             background-color: #808080;
         }
         .error-message {
@@ -91,6 +93,9 @@
             <!-- Кнопка -->
             <div class="button-container">
                 <button type="submit" class="login-button">Log In</button>
+                <a href="/register">
+                    <button type="button" class="register-button">Register</button>
+                </a>
             </div>
             {% if error %}
             <p class="error-message">{{ error }}</p>

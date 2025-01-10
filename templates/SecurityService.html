@@ -1,0 +1,54 @@
+<!-- templates/SecurityService.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Security Service</title>
+</head>
+<body>
+    <h1>Проверка данных пользователя</h1>
+
+    <!-- Если есть сообщение (приходящее, например, при approve_user или reject_user) -->
+    {% if message %}
+        <p style="color: green;"><strong>{{ message }}</strong></p>
+    {% endif %}
+
+    <!-- Если есть данные пользователя, показываем их -->
+    {% if username %}
+        <p><strong>Username:</strong> {{ username }}</p>
+        <p><strong>Password:</strong> {{ password }}</p>
+        <p><strong>Role:</strong> {{ role }}</p>
+        <p><strong>Legal Name:</strong> {{ legal_name }}</p>
+        <p><strong>INN:</strong> {{ inn }}</p>
+        <p><strong>KPP:</strong> {{ kpp }}</p>
+        <p><strong>OGRN:</strong> {{ ogrn }}</p>
+        <p><strong>Legal Address:</strong> {{ legal_address }}</p>
+        <p><strong>Contact:</strong> {{ contact }}</p>
+
+        <hr>
+
+        <!-- Кнопка "Принять" -->
+        <form action="{{ url_for('approve_user') }}" method="POST">
+            <!-- Передаём скрытно все данные, чтобы сохранить их в БД -->
+            <input type="hidden" name="username" value="{{ username }}">
+            <input type="hidden" name="password" value="{{ password }}">
+            <input type="hidden" name="role" value="{{ role }}">
+            <input type="hidden" name="legal_name" value="{{ legal_name }}">
+            <input type="hidden" name="inn" value="{{ inn }}">
+            <input type="hidden" name="kpp" value="{{ kpp }}">
+            <input type="hidden" name="ogrn" value="{{ ogrn }}">
+            <input type="hidden" name="legal_address" value="{{ legal_address }}">
+            <input type="hidden" name="contact" value="{{ contact }}">
+
+            <button type="submit">Принять</button>
+        </form>
+
+        <!-- Кнопка "Отклонить" -->
+        <form action="{{ url_for('reject_user') }}" method="POST">
+            <button type="submit">Отклонить</button>
+        </form>
+    {% else %}
+        <p>Нет данных для проверки.</p>
+    {% endif %}
+</body>
+</html>
