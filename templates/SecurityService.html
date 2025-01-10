@@ -1,4 +1,3 @@
-<!-- templates/SecurityService.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -8,7 +7,6 @@
 <body>
     <h1>Заявки на регистрацию</h1>
 
-    <!-- Если есть сообщение от approve/reject -->
     {% if message %}
         <p><strong>{{ message }}</strong></p>
     {% endif %}
@@ -23,23 +21,23 @@
                 <th>Actions</th>
             </tr>
             {% for row in pending_list %}
-                <!-- row = (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact) -->
-                <tr>
-                    <td>{{ row[0] }}</td>
-                    <td>{{ row[1] }}</td>
-                    <td>{{ row[3] }}</td>
-                    <td>{{ row[4] }}</td>
-                    <td>
-                        <form action="{{ url_for('approve_pending') }}" method="POST" style="display:inline;">
-                            <input type="hidden" name="pending_id" value="{{ row[0] }}">
-                            <button type="submit">Принять</button>
-                        </form>
-                        <form action="{{ url_for('reject_pending') }}" method="POST" style="display:inline;">
-                            <input type="hidden" name="pending_id" value="{{ row[0] }}">
-                            <button type="submit">Отклонить</button>
-                        </form>
-                    </td>
-                </tr>
+            <!-- row: (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact) -->
+            <tr>
+                <td>{{ row[0] }}</td>
+                <td>{{ row[1] }}</td>
+                <td>{{ row[3] }}</td>
+                <td>{{ row[4] }}</td>
+                <td>
+                    <form action="{{ url_for('approve_pending') }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="pending_id" value="{{ row[0] }}">
+                        <button type="submit">Принять</button>
+                    </form>
+                    <form action="{{ url_for('reject_pending') }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="pending_id" value="{{ row[0] }}">
+                        <button type="submit">Отклонить</button>
+                    </form>
+                </td>
+            </tr>
             {% endfor %}
         </table>
     {% else %}
