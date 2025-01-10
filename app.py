@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, redirect, url_for, make_response
+from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify
 import sqlite3
 
 app = Flask(__name__)
@@ -18,6 +18,20 @@ def check_user(username, password):
         print(f"Ошибка в check_user: {e}")
         return None
 
+# Получение всех карточек
+def get_all_cards():
+    try:
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cards')
+        cards = cursor.fetchall()
+        conn.close()
+        # Преобразуем кортежи в словари
+        return [{'id': card[0], 'name': card[1], 'quantity': card[2], 'price': card[3]} for card in cards]
+    except Exception as e:
+        print(f"Ошибка при получении всех карточек: {e}")
+        return []
+
 # Получение карточек текущего поставщика
 def get_cards_by_supplier(supplier_id):
     try:
@@ -26,8 +40,6 @@ def get_cards_by_supplier(supplier_id):
         cursor.execute('SELECT * FROM cards WHERE supplier_id = ?', (supplier_id,))
         cards = cursor.fetchall()
         conn.close()
-
-        # Преобразуем результат выборки в список словарей
         return [{'id': card[0], 'name': card[1], 'quantity': card[2], 'price': card[3]} for card in cards]
     except Exception as e:
         print(f"Ошибка при получении карточек поставщика: {e}")
@@ -38,10 +50,8 @@ def save_card_to_db(name, quantity, price, supplier_id):
     try:
         conn = sqlite3.connect('users.db')
         cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO cards (name, quantity, price, supplier_id)
-            VALUES (?, ?, ?, ?)
-        ''', (name, quantity, price, supplier_id))
+        cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
+                       (name, quantity, price, supplier_id))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -78,22 +88,17 @@ def supplier_page():
         return redirect(url_for('login'))
 
     supplier_id = user['id']
-    print(f"[DEBUG] Текущий поставщик ID: {supplier_id}")  # Отладка
 
     if request.method == 'POST':
         name = request.form.get('name')
         quantity = request.form.get('quantity')
         price = request.form.get('price')
 
-        print(f"[DEBUG] Добавляем товар: {name}, {quantity}, {price}, Поставщик: {supplier_id}")  # Отладка
-
         if name and quantity and price:
             save_card_to_db(name, quantity, float(price), supplier_id)
             return redirect(url_for('supplier_page'))
 
     cards = get_cards_by_supplier(supplier_id)
-    print(f"[DEBUG] Карточки для поставщика {supplier_id}: {cards}")  # Отладка
-
     return render_template('mainSupply.html', cards=cards, username=username)
 
 @app.route('/business')
@@ -102,19 +107,17 @@ def business_page():
     if not username:
         return redirect(url_for('login'))
 
-    try:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM cards')
-        cards = cursor.fetchall()
-        conn.close()
-        if not cards:
-            print("[DEBUG] Нет карточек в базе данных.")
-    except Exception as e:
-        print(f"[ERROR] Ошибка при получении карточек: {e}")
-        cards = []
+    return render_template('mainBusiness.html', username=username)
 
-    return render_template('mainBusiness.html', cards=cards, username=username)
+# API для получения карточек
+@app.route('/api/cards', methods=['GET'])
+def api_cards():
+    try:
+        cards = get_all_cards()
+        return jsonify(cards)
+    except Exception as e:
+        print(f"Ошибка при получении карточек через API: {e}")
+        return jsonify({'error': 'Failed to fetch cards'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
