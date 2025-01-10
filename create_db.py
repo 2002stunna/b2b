@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS cards (
 )
 ''')
 
-# ------------------- Таблица pending_users с полем status -------------------
+# ------------------- Таблица для "заявок" (если используете) -------------------
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS pending_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS pending_users (
     OGRN TEXT,
     LegalAddress TEXT,
     Contact TEXT,
-    status TEXT NOT NULL DEFAULT 'pending' -- Новое поле
+    status TEXT NOT NULL DEFAULT 'pending'
 )
 ''')
 
@@ -69,18 +69,18 @@ INSERT OR IGNORE INTO users (username, password, role, LegalName, INN, KPP, OGRN
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''', ('katya', '1234', 'supplier', 'ООО Катя', '4455667788', '778899001', '4455667788990', 'г. Новосибирск, ул. Катя, д. 4', 'katya@mail.com'))
 
-# Сотрудник службы безопасности
+# Сотрудник безопасности
 cursor.execute('''
 INSERT OR IGNORE INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''', ('security_user', '1234', 'security', 'ООО Безопасность', '1122334455', '998877665', '3344556677889', 'г. Москва, ул. Безопасности, д. 1', 'sec@mail.com'))
 
 # ------------------- Пример карточек -------------------
-cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
+cursor.execute('INSERT OR IGNORE INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
                ('Product A', 10, 99.99, 2))
-cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
+cursor.execute('INSERT OR IGNORE INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
                ('Product B', 20, 49.99, 4))
-cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
+cursor.execute('INSERT OR IGNORE INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
                ('Product C', 30, 19.99, 2))
 
 conn.commit()

@@ -6,12 +6,15 @@
     <title>Security Service</title>
 </head>
 <body>
-    <h1>Заявки на регистрацию</h1>
+    <h1>Security Service</h1>
 
+    <!-- Сообщение после любой операции -->
     {% if message %}
-        <p><strong>{{ message }}</strong></p>
+    <p style="color:green;">{{ message }}</p>
     {% endif %}
 
+    <!-- 1. Таблица заявок (pending_users) -->
+    <h2>Заявки на регистрацию</h2>
     {% if pending_list and pending_list|length > 0 %}
         <table border="1" cellpadding="5" cellspacing="0">
             <tr>
@@ -41,23 +44,18 @@
                 <td>{{ row[7] }}</td>
                 <td>{{ row[8] }}</td>
                 <td>{{ row[9] }}</td>
+                <td>{{ row[10] }}</td>
                 <td>
                     {% if row[10] == 'pending' %}
-                        <span style="color:orange;">Pending</span>
-                    {% elif row[10] == 'approved' %}
-                        <span style="color:green;">Approved</span>
-                    {% elif row[10] == 'rejected' %}
-                        <span style="color:red;">Rejected</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <!-- Показываем кнопки, только если заявка в pending -->
-                    {% if row[10] == 'pending' %}
-                        <form action="{{ url_for('approve_pending') }}" method="POST" style="display:inline;">
+                        <!-- Принять -->
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="action" value="approve_pending">
                             <input type="hidden" name="pending_id" value="{{ row[0] }}">
                             <button type="submit">Принять</button>
                         </form>
-                        <form action="{{ url_for('reject_pending') }}" method="POST" style="display:inline;">
+                        <!-- Отклонить -->
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="action" value="reject_pending">
                             <input type="hidden" name="pending_id" value="{{ row[0] }}">
                             <button type="submit">Отклонить</button>
                         </form>
@@ -67,7 +65,117 @@
             {% endfor %}
         </table>
     {% else %}
-        <p>Нет заявок на регистрацию.</p>
+        <p>Нет заявок.</p>
+    {% endif %}
+
+    <hr>
+
+    <!-- 2. Форма "Добавить пользователя" в users -->
+    <h2>Добавить пользователя</h2>
+    <form method="POST" style="border:1px solid #ccc; padding:10px; margin-bottom:20px;">
+        <input type="hidden" name="action" value="add_user">
+        <p>
+            <label>Username:</label><br>
+            <input type="text" name="username" required>
+        </p>
+        <p>
+            <label>Password:</label><br>
+            <input type="text" name="password" required>
+        </p>
+        <p>
+            <label>Role:</label><br>
+            <select name="role" required>
+                <option value="">--Выберите--</option>
+                <option value="supplier">supplier</option>
+                <option value="business">business</option>
+                <option value="security">security</option>
+            </select>
+        </p>
+        <p>
+            <label>LegalName:</label><br>
+            <input type="text" name="legal_name">
+        </p>
+        <p>
+            <label>INN:</label><br>
+            <input type="text" name="inn">
+        </p>
+        <p>
+            <label>KPP:</label><br>
+            <input type="text" name="kpp">
+        </p>
+        <p>
+            <label>OGRN:</label><br>
+            <input type="text" name="ogrn">
+        </p>
+        <p>
+            <label>LegalAddress:</label><br>
+            <input type="text" name="legal_address">
+        </p>
+        <p>
+            <label>Contact:</label><br>
+            <input type="text" name="contact">
+        </p>
+        <button type="submit">Добавить</button>
+    </form>
+
+    <!-- 3. Таблица реальных пользователей (users) c inline-обновлением и удалением -->
+    <h2>Список пользователей</h2>
+    {% if user_list and user_list|length > 0 %}
+        <table border="1" cellpadding="5" cellspacing="0">
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Password</th>
+                <th>Role</th>
+                <th>LegalName</th>
+                <th>INN</th>
+                <th>KPP</th>
+                <th>OGRN</th>
+                <th>LegalAddress</th>
+                <th>Contact</th>
+                <th>Actions</th>
+            </tr>
+            {% for u in user_list %}
+            <!-- u = (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact) -->
+            <tr>
+                <form method="POST">
+                    <td>{{ u[0] }}
+                        <input type="hidden" name="user_id" value="{{ u[0] }}">
+                    </td>
+                    <td><input type="text" name="username" value="{{ u[1] }}" required></td>
+                    <td><input type="text" name="password" value="{{ u[2] }}" required></td>
+                    <td>
+                        <select name="role">
+                            <option value="supplier" {% if u[3]=='supplier' %}selected{% endif %}>supplier</option>
+                            <option value="business" {% if u[3]=='business' %}selected{% endif %}>business</option>
+                            <option value="security" {% if u[3]=='security' %}selected{% endif %}>security</option>
+                        </select>
+                    </td>
+                    <td><input type="text" name="legal_name" value="{{ u[4] }}"></td>
+                    <td><input type="text" name="inn" value="{{ u[5] }}"></td>
+                    <td><input type="text" name="kpp" value="{{ u[6] }}"></td>
+                    <td><input type="text" name="ogrn" value="{{ u[7] }}"></td>
+                    <td><input type="text" name="legal_address" value="{{ u[8] }}"></td>
+                    <td><input type="text" name="contact" value="{{ u[9] }}"></td>
+                    <td>
+                        <!-- Кнопка "Обновить" -->
+                        <button type="submit" name="action" value="update_user">Обновить</button>
+                    </td>
+                </form>
+
+                <!-- Отдельная форма на удаление, т.к. POST -->
+                <td>
+                    <form method="POST" style="display:inline;">
+                        <input type="hidden" name="action" value="delete_user">
+                        <input type="hidden" name="user_id" value="{{ u[0] }}">
+                        <button type="submit">Удалить</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>Нет пользователей.</p>
     {% endif %}
 </body>
 </html>
