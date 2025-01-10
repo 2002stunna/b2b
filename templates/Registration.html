@@ -8,10 +8,11 @@
 <body>
     <h1>Регистрация</h1>
 
-    <!-- Если есть сообщение об успехе или ошибке, выводим -->
+    <!-- Если есть сообщение об успехе -->
     {% if success_message %}
         <p style="color: green;">{{ success_message }}</p>
     {% endif %}
+    <!-- Если есть ошибка -->
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
@@ -25,8 +26,6 @@
             <label>Password:</label><br>
             <input type="password" name="password" required>
         </p>
-
-        <!-- Выпадающий список роли -->
         <p>
             <label>Role:</label><br>
             <select name="role" required>
@@ -35,7 +34,6 @@
                 <option value="business">Бизнес</option>
             </select>
         </p>
-
         <p>
             <label>Полное наименование (Legal Name):</label><br>
             <input type="text" name="legal_name" required>

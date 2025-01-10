@@ -4,7 +4,7 @@ import sqlite3
 conn = sqlite3.connect('Main.db')
 cursor = conn.cursor()
 
-# Создание таблицы пользователей с необходимыми столбцами
+# ------------------- Создание таблицы пользователей (прежнее) -------------------
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
 )
 ''')
 
-# Создание таблицы карточек с привязкой к поставщику
+# ------------------- Создание таблицы карточек (прежнее) -------------------
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS cards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,7 +32,23 @@ CREATE TABLE IF NOT EXISTS cards (
 )
 ''')
 
-# Добавление тестовых пользователей
+# ------------------- НОВАЯ таблица для заявок на регистрацию -------------------
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS pending_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL,
+    LegalName TEXT,
+    INN TEXT,
+    KPP TEXT,
+    OGRN TEXT,
+    LegalAddress TEXT,
+    Contact TEXT
+)
+''')
+
+# ------------------- Добавление тестовых пользователей (прежнее) -------------------
 cursor.execute('''
 INSERT OR IGNORE INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -53,13 +69,13 @@ INSERT OR IGNORE INTO users (username, password, role, LegalName, INN, KPP, OGRN
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''', ('katya', '1234', 'supplier', 'ООО Катя', '4455667788', '778899001', '4455667788990', 'г. Новосибирск, ул. Катя, д. 4', 'katya@mail.com'))
 
-# Добавление тестового пользователя службы безопасности
+# ------------------- Добавляем сотрудника безопасности (role=security) -------------------
 cursor.execute('''
 INSERT OR IGNORE INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-''', ('security', '1234', 'security', 'ООО Безопасность', '1122334455', '998877665', '3344556677889', 'г. Москва, ул. Безопасности, д. 1', 'sec@mail.com'))
+''', ('security_user', '1234', 'security', 'ООО Безопасность', '1122334455', '998877665', '3344556677889', 'г. Москва, ул. Безопасности, д. 1', 'sec@mail.com'))
 
-# Добавляем тестовые карточки
+# ------------------- Добавляем тестовые карточки (прежнее) -------------------
 cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
                ('Product A', 10, 99.99, 2))
 cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
