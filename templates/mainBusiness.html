@@ -62,7 +62,7 @@
 </head>
 <body>
 
-    <!-- КНОПКА В ЛЕВОМ ВЕРХНЕМ УГЛУ -->
+    <!-- КНОПКА В ЛЕВОМ ВЕРХНЕМ УГЛУ, ведущая на страницу бизнес-аккаунта -->
     <div class="header-left">
         <form action="/business/account" method="GET">
             <button type="submit">{{ username }}</button>
@@ -109,10 +109,11 @@
                         <p>Quantity: ${card.quantity}</p>
                         <p>Price: $${card.price}</p>
 
-                        <!-- Кнопка "Купить", переходящая на /buy/<id> -->
+                        <!-- Если хотите кнопку "Купить", раскомментируйте:
                         <form action="/buy/${card.id}" method="GET">
                             <button type="submit" class="buy-button">Купить</button>
                         </form>
+                        -->
                     `;
                     cardsContainer.appendChild(cardElement);
                 });

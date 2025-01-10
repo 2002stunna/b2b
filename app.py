@@ -282,6 +282,33 @@ def supplier_account():
         contact=account_data[5]
     )
 
+@app.route('/business/account')
+def business_account():
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+    
+    user = check_user(username, request.cookies.get('password'))
+    if not user or user['role'] != 'business':
+        return redirect(url_for('login'))
+
+    account_data = get_user_account(username)
+    if not account_data:
+        # Если нет данных, отрендерим mainAccount.html, но передадим ошибку
+        return render_template('mainAccount.html', error="Account data not found.", username=username)
+
+    # Если данные получены, отрендерим тот же шаблон (или другой, если хотите)
+    return render_template(
+        'mainAccount.html',  # Или 'mainAccountBusiness.html'
+        username=username,
+        legal_name=account_data[0],
+        inn=account_data[1],
+        kpp=account_data[2],
+        ogrn=account_data[3],
+        legal_address=account_data[4],
+        contact=account_data[5]
+    )
+
 # -----------------------------------------------------------------------------
 # 8. Маршрут BUY: покупка товара
 # -----------------------------------------------------------------------------

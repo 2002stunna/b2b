@@ -1,8 +1,8 @@
+<!-- templates/mainSupply.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supplier Dashboard</title>
     <style>
         body {
@@ -15,21 +15,19 @@
             background-color: #f8f9fa;
             color: #333;
         }
-        .header {
+        /* Кнопка в левом верхнем углу */
+        .header-left {
             position: absolute;
             top: 10px;
             left: 20px;
         }
-        .header button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .header button:hover {
-            background-color: #0056b3;
+        /* Существующий стиль для заголовка или другой шапки */
+        .header {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 14px;
+            color: #666;
         }
         .form-container, .cards-container {
             width: 100%;
@@ -50,16 +48,21 @@
     </style>
 </head>
 <body>
-    <!-- Кнопка с логином -->
-    <div class="header">
+    <!-- Кнопка слева вверху: идём на страницу аккаунта поставщика -->
+    <div class="header-left">
         <form action="/supplier/account" method="GET">
             <button type="submit">{{ username }}</button>
         </form>
     </div>
 
+    <!-- Пример того, как вы раньше выводили логин или что-то ещё -->
+    <div class="header">
+        <p>Logged in as: <strong>{{ username }}</strong></p>
+    </div>
+
     <h1>Supplier Dashboard</h1>
 
-    <!-- Форма для добавления продукта -->
+    <!-- Форма для добавления продуктов -->
     <div class="form-container">
         <form method="POST">
             <input type="text" name="name" placeholder="Product Name" required>
