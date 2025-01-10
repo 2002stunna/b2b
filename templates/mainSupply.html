@@ -64,13 +64,17 @@
     <!-- Список карточек -->
     <div class="cards-container">
         <h2>Your Products</h2>
-        {% for card in cards %}
-        <div class="card">
-            <h2>{{ card[1] }}</h2>
-            <p>Quantity: {{ card[2] }}</p>
-            <p>Price: ${{ card[3] }}</p>
-        </div>
-        {% endfor %}
+        {% if cards %}
+            {% for card in cards %}
+            <div class="card">
+                <h2>{{ card.name }}</h2>
+                <p>Quantity: {{ card.quantity }}</p>
+                <p>Price: ${{ card.price }}</p>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No products added yet.</p>
+        {% endif %}
     </div>
 </body>
 </html>
