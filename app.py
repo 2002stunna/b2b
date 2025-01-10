@@ -26,7 +26,9 @@ def get_cards_by_supplier(supplier_id):
         cursor.execute('SELECT * FROM cards WHERE supplier_id = ?', (supplier_id,))
         cards = cursor.fetchall()
         conn.close()
-        return cards
+
+        # Преобразуем результат выборки в список словарей
+        return [{'id': card[0], 'name': card[1], 'quantity': card[2], 'price': card[3]} for card in cards]
     except Exception as e:
         print(f"Ошибка при получении карточек поставщика: {e}")
         return []
