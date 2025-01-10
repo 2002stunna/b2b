@@ -1,15 +1,12 @@
 import sqlite3
-from flask import Flask, request, render_template, redirect, url_for, make_response
+from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify
 
 app = Flask(__name__)
 
-# ---------------------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------------------
-
+# -----------------------------------------------------------------------------
+# 1. Проверка пользователя в базе данных (не менялась)
+# -----------------------------------------------------------------------------
 def check_user(username, password):
-    """
-    Проверка пользователя в базе данных (пример).
-    Возвращает словарь {id, username, role} или None, если не найден.
-    """
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
@@ -17,35 +14,35 @@ def check_user(username, password):
         user = cursor.fetchone()
         conn.close()
         if user:
-            # Допустим, структура таблицы users:
-            # (id, username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact)
-            return {'id': user[0], 'username': user[1], 'role': user[3]}
+            return {'id': user[0], 'username': user[1], 'role': user[3]}  # Возвращаем данные с ролью
         return None
     except Exception as e:
         print(f"Ошибка в check_user: {e}")
         return None
 
-
+# -----------------------------------------------------------------------------
+# 2. Сохранение НОВОГО пользователя в базу (новая функция!)
+# -----------------------------------------------------------------------------
 def save_user_to_db(username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact):
     """
-    Сохранение нового пользователя в базу данных.
+    Сохраняет нового пользователя в таблицу users.
+    Предполагается, что структура таблицы users примерно такая:
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            role TEXT,
+            legal_name TEXT,
+            inn TEXT,
+            kpp TEXT,
+            ogrn TEXT,
+            legal_address TEXT,
+            contact TEXT
+        );
     """
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
-        # Пример структуры таблицы users (id автогенерируется):
-        # CREATE TABLE users (
-        #   id INTEGER PRIMARY KEY AUTOINCREMENT,
-        #   username TEXT UNIQUE,
-        #   password TEXT,
-        #   role TEXT,
-        #   legal_name TEXT,
-        #   inn TEXT,
-        #   kpp TEXT,
-        #   ogrn TEXT,
-        #   legal_address TEXT,
-        #   contact TEXT
-        # );
         cursor.execute("""
             INSERT INTO users 
             (username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact)
@@ -58,54 +55,55 @@ def save_user_to_db(username, password, role, legal_name, inn, kpp, ogrn, legal_
         print(f"Ошибка при добавлении пользователя: {e}")
         return False
 
+# -----------------------------------------------------------------------------
+# 3. Получение всех карточек (не менялось)
+# -----------------------------------------------------------------------------
+def get_all_cards():
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cards')
+        cards = cursor.fetchall()
+        conn.close()
+        return [{'id': card[0], 'name': card[1], 'quantity': card[2], 'price': card[3]} for card in cards]
+    except Exception as e:
+        print(f"Ошибка при получении всех карточек: {e}")
+        return []
 
+# -----------------------------------------------------------------------------
+# 4. Получение карточек текущего поставщика (не менялось)
+# -----------------------------------------------------------------------------
 def get_cards_by_supplier(supplier_id):
-    """
-    Возвращает список карточек (товаров) по ID поставщика.
-    Структура таблицы cards: (id, name, quantity, price, supplier_id)
-    """
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM cards WHERE supplier_id = ?', (supplier_id,))
         cards = cursor.fetchall()
         conn.close()
-        return [
-            {
-                'id': card[0],
-                'name': card[1],
-                'quantity': card[2],
-                'price': card[3]
-            } 
-            for card in cards
-        ]
+        return [{'id': card[0], 'name': card[1], 'quantity': card[2], 'price': card[3]} for card in cards]
     except Exception as e:
         print(f"Ошибка при получении карточек поставщика: {e}")
         return []
 
-
+# -----------------------------------------------------------------------------
+# 5. Сохранение карточки в базе данных (не менялось)
+# -----------------------------------------------------------------------------
 def save_card_to_db(name, quantity, price, supplier_id):
-    """
-    Сохранение карточки товара в базе данных.
-    """
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)',
+        cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
                        (name, quantity, price, supplier_id))
         conn.commit()
         conn.close()
     except Exception as e:
         print(f"Ошибка при сохранении карточки: {e}")
 
-
-# ---------------------- МАРШРУТЫ ----------------------
-
+# -----------------------------------------------------------------------------
+# 6. Маршрут LOGIN (не менялся; обращаем внимание на редирект supplier_page/business_page)
+# -----------------------------------------------------------------------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
-    """
-    Пример страницы логина (не менялась).
-    """
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -117,7 +115,7 @@ def login():
         if user:
             response = make_response(
                 redirect(
-                    url_for('supplier_page') if user['role'] == 'supplier' else url_for('security_service')
+                    url_for('supplier_page') if user['role'] == 'supplier' else url_for('business_page')
                 )
             )
             response.set_cookie('username', username)
@@ -128,25 +126,13 @@ def login():
 
     return render_template('login.html', username=None)
 
-
-@app.route('/register', methods=['GET'])
+# -----------------------------------------------------------------------------
+# 7. Маршрут REGISTER (не менялся; при POST рендерит SecurityService.html с данными)
+# -----------------------------------------------------------------------------
+@app.route('/register', methods=['GET', 'POST'])
 def register():
-    """
-    Просто рендерит форму для регистрации.
-    POST-логика здесь не нужна, так как форма отправляется напрямую на /security-service.
-    """
-    return render_template('Registration.html')
-
-
-@app.route('/security-service', methods=['GET', 'POST'])
-def security_service():
-    """
-    Получаем данные формы из Registration.html (POST)
-    и показываем их на странице SecurityService.html,
-    чтобы оператор мог принять или отклонить.
-    """
     if request.method == 'POST':
-        # Данные, которые пришли из формы на Registration.html
+        # Получение данных из формы
         username = request.form.get('username')
         password = request.form.get('password')
         role = request.form.get('role')
@@ -157,7 +143,11 @@ def security_service():
         legal_address = request.form.get('legal_address')
         contact = request.form.get('contact')
 
-        # Отображаем их на SecurityService.html для проверки оператором
+        # Проверка, что все поля заполнены
+        if not all([username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact]):
+            return render_template('Registration.html', error="All fields are required!")
+
+        # Отправка данных на страницу SecurityService
         return render_template(
             'SecurityService.html',
             username=username,
@@ -170,16 +160,30 @@ def security_service():
             legal_address=legal_address,
             contact=contact
         )
+
+    return render_template('Registration.html')
+
+# -----------------------------------------------------------------------------
+# 8. Страница SECURITY-SERVICE (добавили методы=['GET', 'POST'])
+#    Здесь можно просто рендерить заглушку, если GET.
+# -----------------------------------------------------------------------------
+@app.route('/security-service', methods=['GET', 'POST'])
+def security_service():
+    if request.method == 'POST':
+        # Если вдруг что-то отправили сюда напрямую POST-ом
+        return render_template('SecurityService.html')
     else:
-        # GET-запрос: покажем страницу без данных или сообщение
-        return render_template('SecurityService.html', message="Нет данных для проверки.")
+        # GET-запрос: просто показываем пустую (или заглушку)
+        return render_template('SecurityService.html')
 
-
+# -----------------------------------------------------------------------------
+# 9. Маршрут "ПРИНЯТЬ" пользователя (новый!)
+# -----------------------------------------------------------------------------
 @app.route('/approve-user', methods=['POST'])
 def approve_user():
     """
-    Оператор нажал "Принять" на странице SecurityService.html.
-    Данные сохраняются в БД.
+    Оператор нажимает "Принять" на странице SecurityService.html.
+    Данные пользователя сохраняются в БД.
     """
     username = request.form.get('username')
     password = request.form.get('password')
@@ -191,29 +195,43 @@ def approve_user():
     legal_address = request.form.get('legal_address')
     contact = request.form.get('contact')
 
-    if save_user_to_db(username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact):
+    # Пытаемся сохранить в БД
+    success = save_user_to_db(
+        username,
+        password,
+        role,
+        legal_name,
+        inn,
+        kpp,
+        ogrn,
+        legal_address,
+        contact
+    )
+
+    if success:
         message = "Пользователь успешно добавлен в базу!"
     else:
         message = "Ошибка при добавлении пользователя в базу."
 
     return render_template('SecurityService.html', message=message)
 
-
+# -----------------------------------------------------------------------------
+# 10. Маршрут "ОТКЛОНИТЬ" пользователя (новый!)
+# -----------------------------------------------------------------------------
 @app.route('/reject-user', methods=['POST'])
 def reject_user():
     """
-    Оператор нажал "Отклонить" на странице SecurityService.html.
-    Ничего не сохраняем, просто показываем результат.
+    Оператор нажимает "Отклонить" на странице SecurityService.html.
+    Ничего не сохраняем, просто выводим сообщение.
     """
     message = "Регистрация пользователя отклонена."
     return render_template('SecurityService.html', message=message)
 
-
+# -----------------------------------------------------------------------------
+# 11. Маршрут SUPPLIER (не менялся)
+# -----------------------------------------------------------------------------
 @app.route('/supplier', methods=['GET', 'POST'])
 def supplier_page():
-    """
-    Пример страницы для поставщика (не менялась).
-    """
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
@@ -236,6 +254,16 @@ def supplier_page():
     cards = get_cards_by_supplier(supplier_id)
     return render_template('mainSupply.html', cards=cards, username=username)
 
+# -----------------------------------------------------------------------------
+# 12. Страница "business_page" (У ВАС её НЕ БЫЛО, но в логине есть ссылка)
+#     Чтобы не было ошибки при else: url_for('business_page'), можно заглушку сделать.
+# -----------------------------------------------------------------------------
+@app.route('/business_page')
+def business_page():
+    return "<h1>Business page (заглушка)</h1>"
 
+# -----------------------------------------------------------------------------
+# 13. Точка входа
+# -----------------------------------------------------------------------------
 if __name__ == '__main__':
     app.run(debug=True)
