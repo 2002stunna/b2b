@@ -3,7 +3,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Business Dashboard</title>
     <style>
         body {
@@ -46,6 +45,19 @@
             margin: 0;
             margin-bottom: 5px;
         }
+        /* Стиль для кнопки "Купить" */
+        .buy-button {
+            margin-top: 10px;
+            background-color: #28a745; /* Зеленая кнопка */
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .buy-button:hover {
+            background-color: #218838;
+        }
     </style>
 </head>
 <body>
@@ -57,7 +69,7 @@
         </form>
     </div>
 
-    <!-- УЖЕ БЫВШИЙ КОД: вывод логина в правом верхнем углу -->
+    <!-- Вывод логина в правом верхнем углу -->
     <div class="header">
         Logged in as: <strong>{{ username }}</strong>
     </div>
@@ -96,6 +108,11 @@
                         <h2>${card.name}</h2>
                         <p>Quantity: ${card.quantity}</p>
                         <p>Price: $${card.price}</p>
+
+                        <!-- Кнопка "Купить", переходящая на /buy/<id> -->
+                        <form action="/buy/${card.id}" method="GET">
+                            <button type="submit" class="buy-button">Купить</button>
+                        </form>
                     `;
                     cardsContainer.appendChild(cardElement);
                 });

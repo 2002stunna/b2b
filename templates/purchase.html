@@ -1,0 +1,37 @@
+<!-- templates/purchase.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Покупка товара</title>
+</head>
+<body>
+    <h1>Оформление покупки</h1>
+
+    {% if error %}
+    <p style="color:red">{{ error }}</p>
+    {% endif %}
+    {% if success %}
+    <p style="color:green">{{ success }}</p>
+    {% endif %}
+
+    {% if card %}
+      <p><strong>Товар:</strong> {{ card.name }}</p>
+      <p><strong>Цена за шт.:</strong> ${{ card.price }}</p>
+      <p><strong>На складе доступно:</strong> {{ card.quantity }} шт.</p>
+
+      <form method="POST">
+          <label for="desired_qty">Количество для покупки:</label>
+          <input type="number" name="desired_qty" id="desired_qty" min="1" value="1" required>
+          <button type="submit">Оплатить</button>
+      </form>
+    {% else %}
+      <!-- Если card=None, значит пользователь уже купил -->
+      {% if success %}
+         <p>Хотите вернуться к списку товаров? <a href="/business">Назад</a></p>
+      {% else %}
+         <p>Товар не найден или не указан.</p>
+      {% endif %}
+    {% endif %}
+</body>
+</html>

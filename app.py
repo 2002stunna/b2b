@@ -124,7 +124,7 @@ def delete_user(user_id):
         print("Ошибка delete_user:", e)
         return False
 
-# ----------------- 4. Остальные функции (карточки, аккаунты и т.д.) ------------------
+# ----------------- 4. Работа с карточками ------------------
 def get_all_cards():
     try:
         conn = sqlite3.connect('Main.db')
@@ -160,6 +160,7 @@ def save_card_to_db(name, quantity, price, supplier_id):
     except Exception as e:
         print("Ошибка save_card_to_db:", e)
 
+# ----------------- 5. Получение информации об аккаунте ------------------
 def get_user_account(username):
     try:
         conn = sqlite3.connect('Main.db')
@@ -172,7 +173,30 @@ def get_user_account(username):
         print("Ошибка get_user_account:", e)
         return None
 
-# ----------------- 5. Маршруты логина/поставщика/бизнеса (как было) ------------------
+# ----------------- 6. ДОПОЛНИТЕЛЬНО: Получение карточки по id ------------------
+def get_card_by_id(card_id):
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cards WHERE id=?', (card_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return {
+                'id': row[0],
+                'name': row[1],
+                'quantity': row[2],
+                'price': row[3],
+                'supplier_id': row[4]
+            }
+        return None
+    except Exception as e:
+        print("Ошибка get_card_by_id:", e)
+        return None
+
+# -----------------------------------------------------------------------------
+# 7. Маршруты: LOGIN, SUPPLIER, BUSINESS, и т.д.
+# -----------------------------------------------------------------------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -222,6 +246,7 @@ def business_page():
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
+    # Рендерим mainBusiness.html (см. ниже)
     return render_template('mainBusiness.html', username=username)
 
 @app.route('/api/cards', methods=['GET'])
@@ -246,7 +271,8 @@ def supplier_account():
     if not account_data:
         return render_template('mainAccount.html', error="Account data not found.", username=username)
 
-    return render_template('mainAccount.html',
+    return render_template(
+        'mainAccount.html',
         username=username,
         legal_name=account_data[0],
         inn=account_data[1],
@@ -256,7 +282,66 @@ def supplier_account():
         contact=account_data[5]
     )
 
-# ----------------- 6. Регистрация (заявка) ------------------
+# -----------------------------------------------------------------------------
+# 8. Маршрут BUY: покупка товара
+# -----------------------------------------------------------------------------
+@app.route('/buy/<int:card_id>', methods=['GET','POST'])
+def buy_item(card_id):
+    """
+    При GET – рендерим purchase.html с данными о товаре.
+    При POST – обрабатываем покупку (количество), вычитаем из склада.
+    """
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+
+    user = check_user(username, request.cookies.get('password'))
+    if not user:
+        return redirect(url_for('login'))
+    # По желанию можно проверить, что user['role'] == 'business' (или другая логика)
+
+    card = get_card_by_id(card_id)
+    if not card:
+        return "<h1>Товар не найден</h1>"
+
+    if request.method == 'POST':
+        desired_qty = request.form.get('desired_qty')
+        if not desired_qty:
+            return render_template('purchase.html', card=card, error="Укажите количество")
+
+        try:
+            desired_qty = int(desired_qty)
+        except:
+            return render_template('purchase.html', card=card, error="Неверное количество")
+
+        if desired_qty <= 0:
+            return render_template('purchase.html', card=card, error="Количество должно быть > 0")
+
+        if desired_qty > card['quantity']:
+            return render_template('purchase.html', card=card,
+                                   error="Недостаточно товара на складе!")
+
+        # Вычитаем со склада
+        new_quantity = card['quantity'] - desired_qty
+        try:
+            conn = sqlite3.connect('Main.db')
+            cursor = conn.cursor()
+            cursor.execute('UPDATE cards SET quantity=? WHERE id=?', (new_quantity, card_id))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print("Ошибка при обновлении склада:", e)
+            return render_template('purchase.html', card=card, error="Ошибка при оформлении покупки")
+
+        success_msg = f"Вы купили {desired_qty} шт. товара «{card['name']}». Спасибо за покупку!"
+        return render_template('purchase.html', card=None, success=success_msg)
+
+    # Если GET
+    return render_template('purchase.html', card=card)
+
+# -----------------------------------------------------------------------------
+# 9. Регистрация (заявка)
+# -----------------------------------------------------------------------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -275,7 +360,9 @@ def register():
         return render_template('Registration.html', success_message="Ожидайте подтверждения (пример)")
     return render_template('Registration.html')
 
-# ----------------- 7. ВСЁ В ОДНОЙ СТРАНИЦЕ: /security-service ------------------
+# -----------------------------------------------------------------------------
+# 10. Страница /security-service (Управление заявками и пользователями)
+# -----------------------------------------------------------------------------
 @app.route('/security-service', methods=['GET', 'POST'])
 def security_service():
     username = request.cookies.get('username')
@@ -291,20 +378,16 @@ def security_service():
     if request.method == 'POST':
         action = request.form.get('action')
 
-        # 1. Принять заявку
         if action == 'approve_pending':
             pending_id = request.form.get('pending_id')
             if pending_id:
-                # Ставим статус = approved
                 update_pending_status(pending_id, 'approved')
-                # Переносим в users
                 ok, msg = move_pending_to_users(pending_id)
                 if ok:
                     message = f"Заявка #{pending_id} одобрена и пользователь добавлен."
                 else:
                     message = f"Ошибка: {msg}"
 
-        # 2. Отклонить заявку
         elif action == 'reject_pending':
             pending_id = request.form.get('pending_id')
             if pending_id:
@@ -314,7 +397,6 @@ def security_service():
                 else:
                     message = "Ошибка при отклонении заявки."
 
-        # 3. Добавить нового пользователя в users
         elif action == 'add_user':
             new_username = request.form.get('username')
             new_password = request.form.get('password')
@@ -332,7 +414,6 @@ def security_service():
             else:
                 message = "Ошибка при добавлении пользователя."
 
-        # 4. Обновить существующего пользователя
         elif action == 'update_user':
             user_id = request.form.get('user_id')
             new_username = request.form.get('username')
@@ -351,7 +432,6 @@ def security_service():
             else:
                 message = "Ошибка при обновлении пользователя."
 
-        # 5. Удалить пользователя
         elif action == 'delete_user':
             user_id = request.form.get('user_id')
             ok = delete_user(user_id)
@@ -360,7 +440,6 @@ def security_service():
             else:
                 message = "Ошибка при удалении пользователя."
 
-    # Выгружаем обновлённые данные
     pending_list = get_all_pending()
     user_list = get_all_users()
 
@@ -370,7 +449,7 @@ def security_service():
                            message=message)
 
 # -----------------------------------------------------------------------------
-# 8. Запуск
+# 11. Запуск
 # -----------------------------------------------------------------------------
 if __name__ == '__main__':
     app.run(debug=True)
