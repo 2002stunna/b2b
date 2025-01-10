@@ -72,27 +72,27 @@
         <h2>Account Information</h2>
         <div class="form-group">
             <label for="full-name">Полное наименование юридического лица:</label>
-            <input type="text" id="full-name" name="full-name" placeholder="ООО Пример">
+            <input type="text" id="full-name" name="full-name" value="{{ legal_name }}" readonly>
         </div>
         <div class="form-group">
             <label for="inn">ИНН:</label>
-            <input type="text" id="inn" name="inn" placeholder="1234567890">
+            <input type="text" id="inn" name="inn" value="{{ inn }}" readonly>
         </div>
         <div class="form-group">
             <label for="kpp">КПП:</label>
-            <input type="text" id="kpp" name="kpp" placeholder="987654321">
+            <input type="text" id="kpp" name="kpp" value="{{ kpp }}" readonly>
         </div>
         <div class="form-group">
             <label for="ogrn">ОГРН:</label>
-            <input type="text" id="ogrn" name="ogrn" placeholder="1234567890123">
+            <input type="text" id="ogrn" name="ogrn" value="{{ ogrn }}" readonly>
         </div>
         <div class="form-group">
             <label for="legal-address">Юридический адрес:</label>
-            <input type="text" id="legal-address" name="legal-address" placeholder="г. Москва, ул. Пример, д. 1">
+            <input type="text" id="legal-address" name="legal-address" value="{{ legal_address }}" readonly>
         </div>
         <div class="form-group">
             <label for="contact-info">Контактные данные:</label>
-            <input type="text" id="contact-info" name="contact-info" placeholder="Телефон: +7 123 456 78 90, Email: example@mail.ru">
+            <input type="text" id="contact-info" name="contact-info" value="{{ contact }}" readonly>
         </div>
     </div>
 </body>
