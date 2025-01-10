@@ -8,7 +8,7 @@ app = Flask(__name__)
 # Проверка пользователя в базе данных
 def check_user(username, password):
     try:
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password))
         user = cursor.fetchone()
@@ -24,7 +24,7 @@ def check_user(username, password):
 # Получение всех карточек
 def get_all_cards():
     try:
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM cards')
         cards = cursor.fetchall()
@@ -39,7 +39,7 @@ def get_all_cards():
 # Получение карточек текущего поставщика
 def get_cards_by_supplier(supplier_id):
     try:
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM cards WHERE supplier_id = ?', (supplier_id,))
         cards = cursor.fetchall()
@@ -53,7 +53,7 @@ def get_cards_by_supplier(supplier_id):
 # Сохранение карточки в базе данных
 def save_card_to_db(name, quantity, price, supplier_id):
     try:
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
         cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
                        (name, quantity, price, supplier_id))

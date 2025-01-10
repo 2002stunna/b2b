@@ -1,7 +1,7 @@
 import sqlite3
 
 # Подключение к базе данных (если файла нет, он создастся автоматически)
-conn = sqlite3.connect('users.db')
+conn = sqlite3.connect('Main.db')
 cursor = conn.cursor()
 
 # Создание таблицы пользователей
