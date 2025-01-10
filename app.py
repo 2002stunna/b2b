@@ -245,19 +245,12 @@ def register():
         if not all([username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact]):
             return render_template('Registration.html', error="All fields are required!")
 
-        # Передаём эти данные на страницу SecurityService.html (оператор проверяет)
-        return render_template(
-            'SecurityService.html',
-            username=username,
-            password=password,
-            role=role,
-            legal_name=legal_name,
-            inn=inn,
-            kpp=kpp,
-            ogrn=ogrn,
-            legal_address=legal_address,
-            contact=contact
-        )
+        # ВАЖНО: здесь вы можете (при желании) сразу создавать запись в БД
+        # например, таблица pending_users или users (со статусом "pending").
+        # Но раз вы хотите, чтобы пользователь не шел на SecurityService,
+        # просто показываем: "Ожидайте подтверждения заявки".
+        
+        return render_template('Registration.html', success_message="Ожидайте подтверждения заявки")
 
     # Если GET-запрос — просто показать страницу регистрации
     return render_template('Registration.html')
