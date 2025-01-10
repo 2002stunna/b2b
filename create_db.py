@@ -57,7 +57,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 cursor.execute('''
 INSERT OR IGNORE INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-''', ('security', '1234', 'security'))
+''', ('security', '1234', 'security', 'ООО Безопасность', '1122334455', '998877665', '3344556677889', 'г. Москва, ул. Безопасности, д. 1', 'sec@mail.com'))
 
 # Добавляем тестовые карточки
 cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)', 
