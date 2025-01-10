@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supplier Account Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .back-button:hover {
+            background-color: #0056b3;
+        }
+        .form-container {
+            width: 100%;
+            max-width: 600px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .form-container h2 {
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Supplier Account Details</h1>
+        <form action="/supplier" method="GET">
+            <button type="submit" class="back-button">Back to Dashboard</button>
+        </form>
+    </div>
+
+    <div class="form-container">
+        <h2>Account Information</h2>
+        <div class="form-group">
+            <label for="full-name">Полное наименование юридического лица:</label>
+            <input type="text" id="full-name" name="full-name" placeholder="ООО Пример">
+        </div>
+        <div class="form-group">
+            <label for="inn-kpp">ИНН и КПП:</label>
+            <input type="text" id="inn-kpp" name="inn-kpp" placeholder="ИНН: 1234567890, КПП: 987654321">
+        </div>
+        <div class="form-group">
+            <label for="ogrn">ОГРН:</label>
+            <input type="text" id="ogrn" name="ogrn" placeholder="1234567890123">
+        </div>
+        <div class="form-group">
+            <label for="legal-address">Юридический адрес:</label>
+            <input type="text" id="legal-address" name="legal-address" placeholder="г. Москва, ул. Пример, д. 1">
+        </div>
+        <div class="form-group">
+            <label for="contact-info">Контактные данные:</label>
+            <input type="text" id="contact-info" name="contact-info" placeholder="Телефон: +7 123 456 78 90, Email: example@mail.ru">
+        </div>
+    </div>
+</body>
+</html>

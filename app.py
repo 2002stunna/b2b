@@ -1,7 +1,9 @@
 from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify
 import sqlite3
 
+
 app = Flask(__name__)
+
 
 # Проверка пользователя в базе данных
 def check_user(username, password):
@@ -18,6 +20,7 @@ def check_user(username, password):
         print(f"Ошибка в check_user: {e}")
         return None
 
+
 # Получение всех карточек
 def get_all_cards():
     try:
@@ -32,6 +35,7 @@ def get_all_cards():
         print(f"Ошибка при получении всех карточек: {e}")
         return []
 
+
 # Получение карточек текущего поставщика
 def get_cards_by_supplier(supplier_id):
     try:
@@ -45,6 +49,7 @@ def get_cards_by_supplier(supplier_id):
         print(f"Ошибка при получении карточек поставщика: {e}")
         return []
 
+
 # Сохранение карточки в базе данных
 def save_card_to_db(name, quantity, price, supplier_id):
     try:
@@ -56,6 +61,7 @@ def save_card_to_db(name, quantity, price, supplier_id):
         conn.close()
     except Exception as e:
         print(f"Ошибка при сохранении карточки: {e}")
+
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -76,6 +82,7 @@ def login():
             return render_template('login.html', error="Invalid username or password", username=None)
 
     return render_template('login.html', username=None)
+
 
 @app.route('/supplier', methods=['GET', 'POST'])
 def supplier_page():
@@ -101,6 +108,7 @@ def supplier_page():
     cards = get_cards_by_supplier(supplier_id)
     return render_template('mainSupply.html', cards=cards, username=username)
 
+
 @app.route('/business')
 def business_page():
     username = request.cookies.get('username')
@@ -108,6 +116,7 @@ def business_page():
         return redirect(url_for('login'))
 
     return render_template('mainBusiness.html', username=username)
+
 
 # API для получения карточек
 @app.route('/api/cards', methods=['GET'])
@@ -118,6 +127,20 @@ def api_cards():
     except Exception as e:
         print(f"Ошибка при получении карточек через API: {e}")
         return jsonify({'error': 'Failed to fetch cards'}), 500
+    
+    
+@app.route('/supplier/account', methods=['GET'])
+def supplier_account():
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+
+    user = check_user(username, request.cookies.get('password'))
+    if not user or user['role'] != 'supplier':
+        return redirect(url_for('login'))
+
+    return render_template('mainSupplyAccount.html', username=username)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
