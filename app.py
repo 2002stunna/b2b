@@ -3,93 +3,321 @@ import sqlite3
 
 app = Flask(__name__)
 
-# ----------------- 1. Работа с заявками на покупку ------------------
-
-def create_order(card_id, buyer_id, quantity):
-    """Создание заявки на покупку."""
+# ----------------- 1. Проверка пользователя ------------------
+def check_user(username, password):
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO orders (card_id, buyer_id, quantity, status)
-            VALUES (?, ?, ?, ?)
-        ''', (card_id, buyer_id, quantity, 'pending'))
-        conn.commit()
+        cursor.execute('SELECT * FROM users WHERE username=? AND password=?', (username, password))
+        row = cursor.fetchone()
         conn.close()
-        return True
+        if row:
+            # row = (id, username, password, role, LegalName, ...)
+            return {'id': row[0], 'username': row[1], 'role': row[3]}
+        return None
     except Exception as e:
-        print("Ошибка create_order:", e)
-        return False
+        print("Ошибка check_user:", e)
+        return None
 
-def get_orders_by_supplier(supplier_id):
-    """Получение заявок, относящихся к товарам поставщика."""
+# ----------------- 2. Pending users (заявки) операции ------------------
+def get_all_pending():
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT o.id, c.name, u.username, o.quantity, o.status
-            FROM orders o
-            JOIN cards c ON o.card_id = c.id
-            JOIN users u ON o.buyer_id = u.id
-            WHERE c.supplier_id = ?
-        ''', (supplier_id,))
+        cursor.execute('SELECT * FROM pending_users')
         rows = cursor.fetchall()
         conn.close()
-        return [{'id': row[0], 'product_name': row[1], 'buyer': row[2], 'quantity': row[3], 'status': row[4]} for row in rows]
+        return rows  # (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact, status)
     except Exception as e:
-        print("Ошибка get_orders_by_supplier:", e)
+        print("Ошибка get_all_pending:", e)
         return []
 
-def update_order_status(order_id, new_status):
-    """Обновление статуса заявки."""
+def update_pending_status(pending_id, new_status):
     try:
         conn = sqlite3.connect('Main.db')
         cursor = conn.cursor()
-        cursor.execute('UPDATE orders SET status = ? WHERE id = ?', (new_status, order_id))
+        cursor.execute('UPDATE pending_users SET status=? WHERE id=?', (new_status, pending_id))
         conn.commit()
         conn.close()
         return True
     except Exception as e:
-        print("Ошибка update_order_status:", e)
+        print("Ошибка update_pending_status:", e)
         return False
 
-# ----------------- 2. Маршруты для заявок поставщика ------------------
+def move_pending_to_users(pending_id):
+    """Перенести запись из pending_users в users (по заявке)."""
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        # Получим запись
+        cursor.execute('SELECT * FROM pending_users WHERE id=?', (pending_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False, "Заявка не найдена"
 
-@app.route('/supplier/orders', methods=['GET', 'POST'])
-def supplier_orders():
+        # row = (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact, status)
+        cursor.execute('''
+            INSERT INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[9]))
+        conn.commit()
+        conn.close()
+        return True, "Пользователь добавлен"
+    except Exception as e:
+        print("Ошибка move_pending_to_users:", e)
+        return False, str(e)
+
+# ----------------- 3. Users (основная таблица) операции ------------------
+def get_all_users():
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users')
+        rows = cursor.fetchall()
+        conn.close()
+        return rows  # (id, username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
+    except Exception as e:
+        print("Ошибка get_all_users:", e)
+        return []
+
+def add_user(username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact):
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print("Ошибка add_user:", e)
+        return False
+
+def update_user(user_id, username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact):
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE users
+            SET username=?, password=?, role=?, LegalName=?, INN=?, KPP=?, OGRN=?, LegalAddress=?, Contact=?
+            WHERE id=?
+        ''', (username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact, user_id))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print("Ошибка update_user:", e)
+        return False
+
+def delete_user(user_id):
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM users WHERE id=?', (user_id,))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print("Ошибка delete_user:", e)
+        return False
+
+# ----------------- 4. Работа с карточками ------------------
+def get_all_cards():
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cards')
+        cards = cursor.fetchall()
+        conn.close()
+        return [{'id': c[0], 'name': c[1], 'quantity': c[2], 'price': c[3]} for c in cards]
+    except Exception as e:
+        print("Ошибка get_all_cards:", e)
+        return []
+
+def get_cards_by_supplier(supplier_id):
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cards WHERE supplier_id=?', (supplier_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [{'id': r[0], 'name': r[1], 'quantity': r[2], 'price': r[3]} for r in rows]
+    except Exception as e:
+        print("Ошибка get_cards_by_supplier:", e)
+        return []
+
+def save_card_to_db(name, quantity, price, supplier_id):
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)',
+                       (name, quantity, price, supplier_id))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("Ошибка save_card_to_db:", e)
+
+# ----------------- 5. Получение информации об аккаунте ------------------
+def get_user_account(username):
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT LegalName, INN, KPP, OGRN, LegalAddress, Contact FROM users WHERE username=?', (username,))
+        row = cursor.fetchone()
+        conn.close()
+        return row
+    except Exception as e:
+        print("Ошибка get_user_account:", e)
+        return None
+
+# ----------------- 6. ДОПОЛНИТЕЛЬНО: Получение карточки по id ------------------
+def get_card_by_id(card_id):
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM cards WHERE id=?', (card_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return {
+                'id': row[0],
+                'name': row[1],
+                'quantity': row[2],
+                'price': row[3],
+                'supplier_id': row[4]
+            }
+        return None
+    except Exception as e:
+        print("Ошибка get_card_by_id:", e)
+        return None
+
+# -----------------------------------------------------------------------------
+# 7. Маршруты: LOGIN, SUPPLIER, BUSINESS, и т.д.
+# -----------------------------------------------------------------------------
+@app.route('/', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if not username or not password:
+            return render_template('login.html', error="Both fields are required!", username=None)
+
+        user = check_user(username, password)
+        if user:
+            if user['role'] == 'supplier':
+                response = make_response(redirect(url_for('supplier_page')))
+            elif user['role'] == 'security':
+                response = make_response(redirect(url_for('security_service')))
+            else:
+                response = make_response(redirect(url_for('business_page')))
+            response.set_cookie('username', username)
+            response.set_cookie('password', password)
+            return response
+        else:
+            return render_template('login.html', error="Invalid username or password", username=None)
+
+    return render_template('login.html', username=None)
+
+@app.route('/supplier', methods=['GET', 'POST'])
+def supplier_page():
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+    user = check_user(username, request.cookies.get('password'))
+    if not user or user['role'] != 'supplier':
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        quantity = request.form.get('quantity')
+        price = request.form.get('price')
+        if name and quantity and price:
+            save_card_to_db(name, quantity, float(price), user['id'])
+            return redirect(url_for('supplier_page'))
+
+    cards = get_cards_by_supplier(user['id'])
+    return render_template('mainSupply.html', cards=cards, username=username)
+
+@app.route('/business')
+def business_page():
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+    # Рендерим mainBusiness.html (см. ниже)
+    return render_template('mainBusiness.html', username=username)
+
+@app.route('/api/cards', methods=['GET'])
+def api_cards():
+    try:
+        cards = get_all_cards()
+        return jsonify(cards)
+    except Exception as e:
+        print("Ошибка /api/cards:", e)
+        return jsonify({'error': 'Failed to fetch cards'}), 500
+
+@app.route('/supplier/account')
+def supplier_account():
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+    user = check_user(username, request.cookies.get('password'))
+    if not user or user['role'] != 'supplier':
+        return redirect(url_for('login'))
+
+    account_data = get_user_account(username)
+    if not account_data:
+        return render_template('mainAccount.html', error="Account data not found.", username=username)
+
+    return render_template(
+        'mainAccount.html',
+        username=username,
+        legal_name=account_data[0],
+        inn=account_data[1],
+        kpp=account_data[2],
+        ogrn=account_data[3],
+        legal_address=account_data[4],
+        contact=account_data[5]
+    )
+
+@app.route('/business/account')
+def business_account():
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
     
     user = check_user(username, request.cookies.get('password'))
-    if not user or user['role'] != 'supplier':
+    if not user or user['role'] != 'business':
         return redirect(url_for('login'))
 
-    supplier_id = user['id']
-    message = None
+    account_data = get_user_account(username)
+    if not account_data:
+        # Если нет данных, отрендерим mainAccount.html, но передадим ошибку
+        return render_template('mainAccount.html', error="Account data not found.", username=username)
 
-    if request.method == 'POST':
-        order_id = request.form.get('order_id')
-        action = request.form.get('action')
+    # Если данные получены, отрендерим тот же шаблон (или другой, если хотите)
+    return render_template(
+        'mainAccount.html',  # Или 'mainAccountBusiness.html'
+        username=username,
+        legal_name=account_data[0],
+        inn=account_data[1],
+        kpp=account_data[2],
+        ogrn=account_data[3],
+        legal_address=account_data[4],
+        contact=account_data[5]
+    )
 
-        if action == 'approve':
-            if update_order_status(order_id, 'approved'):
-                message = f"Заявка #{order_id} принята."
-            else:
-                message = f"Ошибка при принятии заявки #{order_id}."
-        elif action == 'reject':
-            if update_order_status(order_id, 'rejected'):
-                message = f"Заявка #{order_id} отклонена."
-            else:
-                message = f"Ошибка при отклонении заявки #{order_id}."
-
-    orders = get_orders_by_supplier(supplier_id)
-    return render_template('supplierOrders.html', orders=orders, message=message, username=username)
-
-# ----------------- 3. Обновление маршрута покупки ------------------
-
-@app.route('/buy/<int:card_id>', methods=['GET', 'POST'])
+# -----------------------------------------------------------------------------
+# 8. Маршрут BUY: покупка товара
+# -----------------------------------------------------------------------------
+@app.route('/buy/<int:card_id>', methods=['GET','POST'])
 def buy_item(card_id):
+    """
+    При GET – рендерим purchase.html с данными о товаре.
+    При POST – обрабатываем покупку (количество), вычитаем из склада.
+    """
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
@@ -97,6 +325,7 @@ def buy_item(card_id):
     user = check_user(username, request.cookies.get('password'))
     if not user:
         return redirect(url_for('login'))
+    # По желанию можно проверить, что user['role'] == 'business' (или другая логика)
 
     card = get_card_by_id(card_id)
     if not card:
@@ -109,233 +338,168 @@ def buy_item(card_id):
 
         try:
             desired_qty = int(desired_qty)
-        except ValueError:
+        except:
             return render_template('purchase.html', card=card, error="Неверное количество")
 
         if desired_qty <= 0:
-            return render_template('purchase.html', card=card, error="Количество должно быть больше 0")
+            return render_template('purchase.html', card=card, error="Количество должно быть > 0")
 
         if desired_qty > card['quantity']:
-            return render_template('purchase.html', card=card, error="Недостаточно товара на складе!")
+            return render_template('purchase.html', card=card,
+                                   error="Недостаточно товара на складе!")
 
-        # Создаем заявку вместо вычитания количества
-        if create_order(card_id, user['id'], desired_qty):
-            return render_template('purchase.html', success=f"Заявка на покупку {desired_qty} шт. товара «{card['name']}» отправлена.", card=None)
-        else:
-            return render_template('purchase.html', card=card, error="Ошибка при создании заявки.")
+        # Вычитаем со склада
+        new_quantity = card['quantity'] - desired_qty
+        try:
+            conn = sqlite3.connect('Main.db')
+            cursor = conn.cursor()
+            cursor.execute('UPDATE cards SET quantity=? WHERE id=?', (new_quantity, card_id))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print("Ошибка при обновлении склада:", e)
+            return render_template('purchase.html', card=card, error="Ошибка при оформлении покупки")
 
+        success_msg = f"Вы купили {desired_qty} шт. товара «{card['name']}». Спасибо за покупку!"
+        return render_template('purchase.html', card=None, success=success_msg)
+
+    # Если GET
     return render_template('purchase.html', card=card)
 
 # -----------------------------------------------------------------------------
-# 4. Запуск сервера
+# 9. Регистрация (заявка)
 # -----------------------------------------------------------------------------
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role')
+        legal_name = request.form.get('legal_name')
+        inn = request.form.get('inn')
+        kpp = request.form.get('kpp')
+        ogrn = request.form.get('ogrn')
+        legal_address = request.form.get('legal_address')
+        contact = request.form.get('contact')
+        if not all([username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact]):
+            return render_template('Registration.html', error="All fields are required!")
+        # ... Сохраняем в pending_users, возвращаем pending_id ...
+        return render_template('Registration.html', success_message="Ожидайте подтверждения (пример)")
+    return render_template('Registration.html')
 
-# НОВЫЙ ФУНКЦИОНАЛ
-def check_user(username, password):
-    """
-    Пример функции проверки пользователя (заглушка).
-    Возвращает структуру типа:
-    {
-      'id': int,
-      'username': str,
-      'role': str,  # 'supplier' или 'buyer'
-      'password': str
-    }
-    """
-    try:
-        conn = sqlite3.connect('Main.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, username, role, password
-            FROM users
-            WHERE username = ? AND password = ?
-        ''', (username, password))
-        row = cursor.fetchone()
-        conn.close()
-        if row:
-            return {
-                'id': row[0],
-                'username': row[1],
-                'role': row[2],
-                'password': row[3]
-            }
-        return None
-    except Exception as e:
-        print("Ошибка check_user:", e)
-        return None
-
-def get_card_by_id(card_id):
-    """
-    Пример функции получения карточки товара (заглушка).
-    Возвращает dict { 'id':..., 'name':..., 'quantity':..., 'supplier_id':... }
-    или None, если не найден.
-    """
-    try:
-        conn = sqlite3.connect('Main.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, name, quantity, supplier_id
-            FROM cards
-            WHERE id = ?
-        ''', (card_id,))
-        row = cursor.fetchone()
-        conn.close()
-        if row:
-            return {
-                'id': row[0],
-                'name': row[1],
-                'quantity': row[2],
-                'supplier_id': row[3]
-            }
-        return None
-    except Exception as e:
-        print("Ошибка get_card_by_id:", e)
-        return None
-
-def get_order_by_id(order_id):
-    """
-    Получить заявку по её ID, чтобы узнать card_id и нужное количество.
-    Возвращает словарь { 'card_id':..., 'quantity':..., 'buyer_id':..., 'status':... }
-    или None, если не найдено.
-    """
-    try:
-        conn = sqlite3.connect('Main.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT card_id, quantity, buyer_id, status
-            FROM orders
-            WHERE id = ?
-        ''', (order_id,))
-        row = cursor.fetchone()
-        conn.close()
-        if row:
-            return {
-                'card_id': row[0],
-                'quantity': row[1],
-                'buyer_id': row[2],
-                'status': row[3]
-            }
-        return None
-    except Exception as e:
-        print("Ошибка get_order_by_id:", e)
-        return None
-
-def update_card_quantity(card_id, delta):
-    """
-    Уменьшить или увеличить (delta может быть отрицательным) количество товара.
-    Возвращает True, если операция прошла успешно, False — если нет.
-    """
-    try:
-        conn = sqlite3.connect('Main.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT quantity FROM cards WHERE id = ?', (card_id,))
-        row = cursor.fetchone()
-        if not row:
-            conn.close()
-            return False
-        
-        current_qty = row[0]
-        new_qty = current_qty + delta
-        if new_qty < 0:
-            conn.close()
-            return False
-        
-        cursor.execute('UPDATE cards SET quantity = ? WHERE id = ?', (new_qty, card_id))
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        print("Ошибка update_card_quantity:", e)
-        return False
-
-@app.route('/supplier/orders/extended', methods=['GET', 'POST'])
-def supplier_orders_extended():
-    """
-    Расширенный маршрут для заявок поставщика:
-    - При approve: ставим статус 'approved', затем уменьшаем товар на складе;
-      если товара не хватило, откатываем статус обратно.
-    - При reject: ставим статус 'rejected'.
-    """
+# -----------------------------------------------------------------------------
+# 10. Страница /security-service (Управление заявками и пользователями)
+# -----------------------------------------------------------------------------
+@app.route('/security-service', methods=['GET', 'POST'])
+def security_service():
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
-    
+
     user = check_user(username, request.cookies.get('password'))
-    if not user or user['role'] != 'supplier':
+    if not user or user['role'] != 'security':
         return redirect(url_for('login'))
 
-    supplier_id = user['id']
     message = None
 
     if request.method == 'POST':
-        order_id = request.form.get('order_id')
         action = request.form.get('action')
 
-        if not order_id or not action:
-            message = "Некорректные данные для заявки."
-        else:
-            if action == 'approve':
-                if update_order_status(order_id, 'approved'):
-                    order_info = get_order_by_id(order_id)
-                    if order_info:
-                        qty = order_info['quantity']
-                        card_id = order_info['card_id']
-                        if not update_card_quantity(card_id, -qty):
-                            update_order_status(order_id, 'pending')
-                            message = f"Недостаточно товара для заявки #{order_id}."
-                        else:
-                            message = f"Заявка #{order_id} успешно одобрена."
-                    else:
-                        message = f"Заявка #{order_id} не найдена."
+        if action == 'approve_pending':
+            pending_id = request.form.get('pending_id')
+            if pending_id:
+                update_pending_status(pending_id, 'approved')
+                ok, msg = move_pending_to_users(pending_id)
+                if ok:
+                    message = f"Заявка #{pending_id} одобрена и пользователь добавлен."
                 else:
-                    message = f"Ошибка при принятии заявки #{order_id}."
-            elif action == 'reject':
-                if update_order_status(order_id, 'rejected'):
-                    message = f"Заявка #{order_id} отклонена."
+                    message = f"Ошибка: {msg}"
+
+        elif action == 'reject_pending':
+            pending_id = request.form.get('pending_id')
+            if pending_id:
+                ok = update_pending_status(pending_id, 'rejected')
+                if ok:
+                    message = f"Заявка #{pending_id} отклонена."
                 else:
-                    message = f"Ошибка при отклонении заявки #{order_id}."
+                    message = "Ошибка при отклонении заявки."
+
+        elif action == 'add_user':
+            new_username = request.form.get('username')
+            new_password = request.form.get('password')
+            new_role = request.form.get('role')
+            new_legal_name = request.form.get('legal_name')
+            new_inn = request.form.get('inn')
+            new_kpp = request.form.get('kpp')
+            new_ogrn = request.form.get('ogrn')
+            new_legal_address = request.form.get('legal_address')
+            new_contact = request.form.get('contact')
+
+            ok = add_user(new_username, new_password, new_role, new_legal_name, new_inn, new_kpp, new_ogrn, new_legal_address, new_contact)
+            if ok:
+                message = f"Пользователь {new_username} добавлен."
             else:
-                message = f"Неизвестное действие: {action}"
+                message = "Ошибка при добавлении пользователя."
 
-    orders = get_orders_by_supplier(supplier_id)
-    return render_template('supplierOrders.html', orders=orders, message=message, username=username)
+        elif action == 'update_user':
+            user_id = request.form.get('user_id')
+            new_username = request.form.get('username')
+            new_password = request.form.get('password')
+            new_role = request.form.get('role')
+            new_legal_name = request.form.get('legal_name')
+            new_inn = request.form.get('inn')
+            new_kpp = request.form.get('kpp')
+            new_ogrn = request.form.get('ogrn')
+            new_legal_address = request.form.get('legal_address')
+            new_contact = request.form.get('contact')
 
-@app.route('/supplier/products', methods=['GET'])
+            ok = update_user(user_id, new_username, new_password, new_role, new_legal_name, new_inn, new_kpp, new_ogrn, new_legal_address, new_contact)
+            if ok:
+                message = f"Пользователь #{user_id} обновлён."
+            else:
+                message = "Ошибка при обновлении пользователя."
+
+        elif action == 'delete_user':
+            user_id = request.form.get('user_id')
+            ok = delete_user(user_id)
+            if ok:
+                message = f"Пользователь #{user_id} удалён."
+            else:
+                message = "Ошибка при удалении пользователя."
+
+    pending_list = get_all_pending()
+    user_list = get_all_users()
+
+    return render_template('SecurityService.html',
+                           pending_list=pending_list,
+                           user_list=user_list,
+                           message=message)
+
+# НОВЫЙ ФУНКЦИОНАЛ НАЧАЛО
+# Пример дополнительного функционала, который можно вставить перед запуском приложения.
+# Здесь вы можете добавить любые нужные вам маршруты или функции.
+
+@app.route('/supplier/orders/extended', methods=['GET','POST'])
+def supplier_orders_extended():
+    """
+    Допустим, мы хотим добавить маршрут, где поставщик видит заказы и
+    при подтверждении заказа не просто вычитает товар, а создает запись в логах и т.п.
+    Здесь можно разместить любую новую логику.
+    """
+    return "<h1>Extended supplier orders logic (пример)</h1>"
+
+
+@app.route('/supplier/products')
 def supplier_products():
     """
-    Пример нового маршрута для просмотра списка товаров поставщика.
+    Аналогично, если нужно вывести список товаров поставщика или что-то еще.
     """
-    username = request.cookies.get('username')
-    if not username:
-        return redirect(url_for('login'))
+    return "<h1>Supplier products (пример)</h1>"
 
-    user = check_user(username, request.cookies.get('password'))
-    if not user or user['role'] != 'supplier':
-        return redirect(url_for('login'))
+# НОВЫЙ ФУНКЦИОНАЛ КОНЕЦ
 
-    supplier_id = user['id']
-    products = []
-    try:
-        conn = sqlite3.connect('Main.db')
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, name, quantity
-            FROM cards
-            WHERE supplier_id = ?
-        ''', (supplier_id,))
-        rows = cursor.fetchall()
-        conn.close()
-
-        for row in rows:
-            products.append({
-                'id': row[0],
-                'name': row[1],
-                'quantity': row[2]
-            })
-    except Exception as e:
-        print("Ошибка при получении списка товаров:", e)
-
-    return render_template('supplierProducts.html', products=products, username=username)
-
+# -----------------------------------------------------------------------------
+# 11. Запуск
+# -----------------------------------------------------------------------------
 if __name__ == '__main__':
     app.run(debug=True)
