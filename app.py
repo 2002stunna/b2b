@@ -357,6 +357,7 @@ def supplier_page():
     if not user or user['role'] != 'supplier':
         return redirect(url_for('login'))
 
+    # Обработка POST-запроса для добавления товара
     if request.method == 'POST':
         name = request.form.get('name')
         quantity = request.form.get('quantity')
@@ -365,8 +366,11 @@ def supplier_page():
             save_card_to_db(name, quantity, float(price), user['id'])
             return redirect(url_for('supplier_page'))
 
+    # Получаем товары и заказы для данного поставщика
     cards = get_cards_by_supplier(user['id'])
-    return render_template('mainSupply.html', cards=cards, username=username)
+    orders = get_orders_by_supplier(user['id'])
+
+    return render_template('mainSupply.html', cards=cards, orders=orders, username=username)
 
 @app.route('/business')
 def business_page():
@@ -389,8 +393,8 @@ def api_cards():
         print("Ошибка /api/cards:", e)
         return jsonify({'error': 'Failed to fetch cards'}), 500
 
-@app.route('/supplier', methods=['GET', 'POST'])
-def supplier_page():
+@app.route('/supplier/account')
+def supplier_account():
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
@@ -398,18 +402,20 @@ def supplier_page():
     if not user or user['role'] != 'supplier':
         return redirect(url_for('login'))
 
-    if request.method == 'POST':
-        name = request.form.get('name')
-        quantity = request.form.get('quantity')
-        price = request.form.get('price')
-        if name and quantity and price:
-            save_card_to_db(name, quantity, float(price), user['id'])
-            return redirect(url_for('supplier_page'))
+    account_data = get_user_account(username)
+    if not account_data:
+        return render_template('mainAccount.html', error="Account data not found.", username=username)
 
-    cards = get_cards_by_supplier(user['id'])
-    orders = get_orders_by_supplier(user['id'])  # Получаем заказы для товаров поставщика
-
-    return render_template('mainSupply.html', cards=cards, orders=orders, username=username)
+    return render_template(
+        'mainAccount.html',
+        username=username,
+        legal_name=account_data[0],
+        inn=account_data[1],
+        kpp=account_data[2],
+        ogrn=account_data[3],
+        legal_address=account_data[4],
+        contact=account_data[5]
+    )
 
 @app.route('/business/account')
 def business_account():
