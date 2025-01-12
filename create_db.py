@@ -48,6 +48,19 @@ CREATE TABLE IF NOT EXISTS pending_users (
 )
 ''')
 
+# ------------------- Таблица orders (заявок покупателей) -------------------
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    card_id INTEGER NOT NULL,
+    buyer_id INTEGER NOT NULL,
+    desired_qty INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    FOREIGN KEY (card_id) REFERENCES cards(id),
+    FOREIGN KEY (buyer_id) REFERENCES users(id)
+)
+''')
+
 # ------------------- Тестовые пользователи -------------------
 cursor.execute('''
 INSERT OR IGNORE INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
