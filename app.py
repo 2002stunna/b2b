@@ -194,8 +194,7 @@ def get_card_by_id(card_id):
         print("Ошибка get_card_by_id:", e)
         return None
 
-# >>> НОВЫЙ ФУНКЦИОНАЛ >>>
-# Функции для работы с заявками (orders)
+# Новый функционал для работы с заказами (orders)
 
 def create_order(card_id, buyer_id, desired_qty):
     """
@@ -235,7 +234,6 @@ def get_orders_by_supplier(supplier_id):
         ''', (supplier_id,))
         rows = cursor.fetchall()
         conn.close()
-        # Возвращаем список словарей
         return [{'order_id': r[0], 'buyer': r[1], 'desired_qty': r[2], 'status': r[3], 'product_name': r[4]} for r in rows]
     except Exception as e:
         print("Ошибка get_orders_by_supplier:", e)
@@ -280,6 +278,28 @@ def update_card_quantity(card_id, delta):
     except Exception as e:
         print("Ошибка update_card_quantity:", e)
         return False
+
+# Новый функционал для покупателя: получение заказов (покупок)
+def get_orders_by_buyer(buyer_id):
+    """
+    Получение заказов для покупателя по его ID.
+    Производится JOIN с таблицей cards для получения названия товара.
+    """
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT o.id, c.name, o.desired_qty, o.status
+            FROM orders o
+            JOIN cards c ON o.card_id = c.id
+            WHERE o.buyer_id = ?
+        ''', (buyer_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [{'order_id': r[0], 'product_name': r[1], 'desired_qty': r[2], 'status': r[3]} for r in rows]
+    except Exception as e:
+        print("Ошибка get_orders_by_buyer:", e)
+        return []
 
 # Новый маршрут для поставщика: просмотр заявок без возможности принимать/отклонять
 @app.route('/supplier/orders', methods=['GET'])
@@ -354,8 +374,12 @@ def business_page():
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
-    # Рендерим mainBusiness.html (см. ниже)
-    return render_template('mainBusiness.html', username=username)
+    user = check_user(username, request.cookies.get('password'))
+    if not user or user['role'] != 'business':
+        return redirect(url_for('login'))
+    
+    orders = get_orders_by_buyer(user['id'])
+    return render_template('mainBusiness.html', username=username, orders=orders)
 
 @app.route('/api/cards', methods=['GET'])
 def api_cards():

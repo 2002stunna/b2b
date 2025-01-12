@@ -29,19 +29,20 @@
             font-size: 14px;
             color: #666;
         }
-        .cards-container {
+        .cards-container, .purchases-container {
             width: 100%;
             max-width: 600px;
             margin-top: 20px;
         }
-        .card {
+        .card, .purchase-card {
             border: 1px solid #ccc;
             padding: 10px;
             border-radius: 5px;
             margin-bottom: 10px;
             background-color: #fff;
         }
-        .card h2, .card p {
+        .card h2, .card p,
+        .purchase-card h3, .purchase-card p {
             margin: 0;
             margin-bottom: 5px;
         }
@@ -76,6 +77,7 @@
 
     <h1>Business Dashboard</h1>
 
+    <!-- Секция для отображения товаров (продукты на продажу) -->
     <div class="cards-container" id="cards-container"></div>
 
     <script>
@@ -108,8 +110,7 @@
                         <h2>${card.name}</h2>
                         <p>Quantity: ${card.quantity}</p>
                         <p>Price: $${card.price}</p>
-
-                        <!-- Кнопка "Купить" — теперь не закомментирована -->
+                        <!-- Кнопка "Купить" -->
                         <form action="/buy/${card.id}" method="GET">
                             <button type="submit" class="buy-button">Купить</button>
                         </form>
@@ -125,5 +126,23 @@
         fetchCards();
         setInterval(fetchCards, 5000);
     </script>
+
+    <!-- Новый раздел: Покупки покупателя -->
+    <div class="purchases-container">
+        <h2>My Purchases</h2>
+        {% if orders %}
+            {% for order in orders %}
+            <div class="purchase-card">
+                <h3>Order #{{ order.order_id }}</h3>
+                <p><strong>Product:</strong> {{ order.product_name }}</p>
+                <p><strong>Quantity:</strong> {{ order.desired_qty }}</p>
+                <p><strong>Status:</strong> {{ order.status }}</p>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>You have not made any purchases yet.</p>
+        {% endif %}
+    </div>
+
 </body>
 </html>
