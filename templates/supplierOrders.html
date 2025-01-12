@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Заявки поставщика</title>
+</head>
+<body>
+    <h1>Заявки</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Покупатель</th>
+                <th>Товар</th>
+                <th>Количество</th>
+                <th>Статус</th>
+                <th>Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.buyer_name }}</td>
+                <td>{{ order.card_name }}</td>
+                <td>{{ order.quantity }}</td>
+                <td>{{ order.status }}</td>
+                <td>
+                    {% if order.status == 'pending' %}
+                    <form method="post">
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <button name="action" value="accept">Принять</button>
+                        <button name="action" value="reject">Отклонить</button>
+                    </form>
+                    {% else %}
+                    {{ order.status | capitalize }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
