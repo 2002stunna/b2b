@@ -194,8 +194,156 @@ def get_card_by_id(card_id):
         print("Ошибка get_card_by_id:", e)
         return None
 
+# >>> НОВЫЙ ФУНКЦИОНАЛ >>>
+# Функции для работы с заявками (orders)
+
+def create_order(card_id, buyer_id, desired_qty):
+    """
+    Создание заявки на покупку.
+    Добавляется запись в таблицу orders с полями:
+    (id, card_id, buyer_id, desired_qty, status)
+    status по умолчанию 'pending'
+    """
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO orders (card_id, buyer_id, desired_qty, status)
+            VALUES (?, ?, ?, ?)
+        ''', (card_id, buyer_id, desired_qty, 'pending'))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print("Ошибка create_order:", e)
+        return False
+
+def get_orders_by_supplier(supplier_id):
+    """
+    Получение заявок для товаров конкретного поставщика.
+    Производится JOIN с таблицей users для получения имени покупателя.
+    """
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT o.id, u.username, o.desired_qty, o.status, c.name
+            FROM orders o
+            JOIN users u ON o.buyer_id = u.id
+            JOIN cards c ON o.card_id = c.id
+            WHERE c.supplier_id = ?
+        ''', (supplier_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        # Возвращаем список словарей
+        return [{'order_id': r[0], 'buyer': r[1], 'desired_qty': r[2], 'status': r[3], 'product_name': r[4]} for r in rows]
+    except Exception as e:
+        print("Ошибка get_orders_by_supplier:", e)
+        return []
+
+def update_order_status(order_id, new_status):
+    """
+    Обновление статуса заявки.
+    new_status может быть 'approved' или 'rejected'.
+    """
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('UPDATE orders SET status=? WHERE id=?', (new_status, order_id))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print("Ошибка update_order_status:", e)
+        return False
+
+def update_card_quantity(card_id, delta):
+    """
+    Изменение количества товара на складе на величину delta (может быть отрицательным).
+    """
+    try:
+        conn = sqlite3.connect('Main.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT quantity FROM cards WHERE id=?', (card_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False
+        new_quantity = row[0] + delta
+        if new_quantity < 0:
+            conn.close()
+            return False
+        cursor.execute('UPDATE cards SET quantity=? WHERE id=?', (new_quantity, card_id))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print("Ошибка update_card_quantity:", e)
+        return False
+
+# Новый маршрут для поставщика: просмотр заявок
+@app.route('/supplier/orders', methods=['GET', 'POST'])
+def supplier_orders():
+    """
+    На этой странице поставщика отображаются заявки покупателей.
+    Для каждой заявки выводится имя покупателя, название товара, желаемое количество
+    и кнопки для одобрения или отклонения.
+    При нажатии на кнопку обрабатывается POST-запрос, обновляется статус заявки,
+    а при одобрении происходит списание товара со склада.
+    """
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+    user = check_user(username, request.cookies.get('password'))
+    if not user or user['role'] != 'supplier':
+        return redirect(url_for('login'))
+    supplier_id = user['id']
+    message = None
+
+    if request.method == 'POST':
+        order_id = request.form.get('order_id')
+        action = request.form.get('action')
+        if not order_id or not action:
+            message = "Некорректные данные заявки."
+        else:
+            if action == 'approve':
+                # Сначала изменяем статус заявки на approved
+                if update_order_status(order_id, 'approved'):
+                    # Получаем данные заявки, чтобы списать товар
+                    # Допустим, для упрощения, получаем card_id через orders и списываем desired_qty
+                    conn = sqlite3.connect('Main.db')
+                    cursor = conn.cursor()
+                    cursor.execute('SELECT card_id, desired_qty FROM orders WHERE id=?', (order_id,))
+                    result = cursor.fetchone()
+                    conn.close()
+                    if result:
+                        card_id, desired_qty = result[0], result[1]
+                        # Пытаемся списать товар
+                        if update_card_quantity(card_id, -desired_qty):
+                            message = f"Заявка #{order_id} успешно одобрена, товар списан."
+                        else:
+                            # Если товара не хватает, откатываем статус заявки
+                            update_order_status(order_id, 'pending')
+                            message = f"Недостаточно товара для заявки #{order_id}."
+                    else:
+                        message = "Заявка не найдена."
+                else:
+                    message = f"Ошибка при обновлении заявки #{order_id}."
+            elif action == 'reject':
+                if update_order_status(order_id, 'rejected'):
+                    message = f"Заявка #{order_id} отклонена."
+                else:
+                    message = f"Ошибка при отклонении заявки #{order_id}."
+            else:
+                message = "Неизвестное действие."
+
+    orders = get_orders_by_supplier(supplier_id)
+    return render_template('supplierOrders.html', orders=orders, message=message, username=username)
+# <<< НОВЫЙ ФУНКЦИОНАЛ <<<
+
 # -----------------------------------------------------------------------------
 # 7. Маршруты: LOGIN, SUPPLIER, BUSINESS, и т.д.
+# (Остальные маршруты ниже не изменялись)
 # -----------------------------------------------------------------------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -316,7 +464,7 @@ def business_account():
 def buy_item(card_id):
     """
     При GET – рендерим purchase.html с данными о товаре.
-    При POST – обрабатываем покупку (количество), вычитаем из склада.
+    При POST – обрабатываем покупку (количество) и создаём заявку на покупку.
     """
     username = request.cookies.get('username')
     if not username:
@@ -347,21 +495,14 @@ def buy_item(card_id):
         if desired_qty > card['quantity']:
             return render_template('purchase.html', card=card,
                                    error="Недостаточно товара на складе!")
-
-        # Вычитаем со склада
-        new_quantity = card['quantity'] - desired_qty
-        try:
-            conn = sqlite3.connect('Main.db')
-            cursor = conn.cursor()
-            cursor.execute('UPDATE cards SET quantity=? WHERE id=?', (new_quantity, card_id))
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            print("Ошибка при обновлении склада:", e)
-            return render_template('purchase.html', card=card, error="Ошибка при оформлении покупки")
-
-        success_msg = f"Вы купили {desired_qty} шт. товара «{card['name']}». Спасибо за покупку!"
-        return render_template('purchase.html', card=None, success=success_msg)
+        
+        # >>> МОДИФИКАЦИЯ: Создаём заявку вместо непосредственного вычитания со склада
+        if create_order(card_id, user['id'], desired_qty):
+            success_msg = f"Ваша заявка на покупку {desired_qty} шт. товара «{card['name']}» отправлена поставщику."
+            return render_template('purchase.html', card=None, success=success_msg)
+        else:
+            return render_template('purchase.html', card=card, error="Ошибка при создании заявки.")
+        # <<< МОДИФИКАЦИЯ
 
     # Если GET
     return render_template('purchase.html', card=card)
@@ -474,29 +615,6 @@ def security_service():
                            pending_list=pending_list,
                            user_list=user_list,
                            message=message)
-
-# НОВЫЙ ФУНКЦИОНАЛ НАЧАЛО
-# Пример дополнительного функционала, который можно вставить перед запуском приложения.
-# Здесь вы можете добавить любые нужные вам маршруты или функции.
-
-@app.route('/supplier/orders/extended', methods=['GET','POST'])
-def supplier_orders_extended():
-    """
-    Допустим, мы хотим добавить маршрут, где поставщик видит заказы и
-    при подтверждении заказа не просто вычитает товар, а создает запись в логах и т.п.
-    Здесь можно разместить любую новую логику.
-    """
-    return "<h1>Extended supplier orders logic (пример)</h1>"
-
-
-@app.route('/supplier/products')
-def supplier_products():
-    """
-    Аналогично, если нужно вывести список товаров поставщика или что-то еще.
-    """
-    return "<h1>Supplier products (пример)</h1>"
-
-# НОВЫЙ ФУНКЦИОНАЛ КОНЕЦ
 
 # -----------------------------------------------------------------------------
 # 11. Запуск

@@ -1,42 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <title>Заявки поставщика</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Заявки</h1>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Покупатель</th>
-                <th>Товар</th>
-                <th>Количество</th>
-                <th>Статус</th>
-                <th>Действие</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for order in orders %}
-            <tr>
-                <td>{{ order.buyer_name }}</td>
-                <td>{{ order.card_name }}</td>
-                <td>{{ order.quantity }}</td>
-                <td>{{ order.status }}</td>
-                <td>
-                    {% if order.status == 'pending' %}
-                    <form method="post">
-                        <input type="hidden" name="order_id" value="{{ order.id }}">
-                        <button name="action" value="accept">Принять</button>
-                        <button name="action" value="reject">Отклонить</button>
-                    </form>
-                    {% else %}
-                    {{ order.status | capitalize }}
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <h1>Заявки на покупку</h1>
+    {% if message %}
+        <p>{{ message }}</p>
+    {% endif %}
+
+    {% if orders %}
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Номер заявки</th>
+                    <th>Покупатель</th>
+                    <th>Товар</th>
+                    <th>Количество</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.order_id }}</td>
+                    <td>{{ order.buyer }}</td>
+                    <td>{{ order.product_name }}</td>
+                    <td>{{ order.desired_qty }}</td>
+                    <td>{{ order.status }}</td>
+                    <td>
+                        <form action="{{ url_for('supplier_orders') }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="order_id" value="{{ order.order_id }}">
+                            <button type="submit" name="action" value="approve">Принять</button>
+                        </form>
+                        <form action="{{ url_for('supplier_orders') }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="order_id" value="{{ order.order_id }}">
+                            <button type="submit" name="action" value="reject">Отклонить</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Заявок нет.</p>
+    {% endif %}
+    <p><a href="{{ url_for('supplier_page') }}">Вернуться на страницу поставщика</a></p>
 </body>
 </html>
