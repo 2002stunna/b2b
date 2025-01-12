@@ -401,6 +401,9 @@ def supplier_account():
     account_data = get_user_account(username)
     if not account_data:
         return render_template('mainAccount.html', error="Account data not found.", username=username)
+    
+    # Добавляем получение заказов для данного поставщика
+    orders = get_orders_by_supplier(user['id'])
 
     return render_template(
         'mainAccount.html',
@@ -410,7 +413,8 @@ def supplier_account():
         kpp=account_data[2],
         ogrn=account_data[3],
         legal_address=account_data[4],
-        contact=account_data[5]
+        contact=account_data[5],
+        orders=orders
     )
 
 @app.route('/business/account')
