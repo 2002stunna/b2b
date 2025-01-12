@@ -317,7 +317,7 @@ def supplier_orders():
     message = None
 
     orders = get_orders_by_supplier(supplier_id)
-    return render_template('supplierOrders.html', orders=orders, message=message, username=username)
+    return render_template('mainSupply.html', orders=orders, message=message, username=username)
 # <<< НОВЫЙ ФУНКЦИОНАЛ <<<
 
 # -----------------------------------------------------------------------------
