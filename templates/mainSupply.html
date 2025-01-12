@@ -46,10 +46,6 @@
             margin: 0;
             margin-bottom: 5px;
         }
-        .order-actions form {
-            display: inline-block;
-            margin-right: 5px;
-        }
     </style>
 </head>
 <body>
@@ -107,16 +103,6 @@
                 <p><strong>Product:</strong> {{ order.product_name }}</p>
                 <p><strong>Quantity:</strong> {{ order.desired_qty }}</p>
                 <p><strong>Status:</strong> {{ order.status }}</p>
-                <div class="order-actions">
-                    <form action="{{ url_for('supplier_orders') }}" method="POST">
-                        <input type="hidden" name="order_id" value="{{ order.order_id }}">
-                        <button type="submit" name="action" value="approve">Approve</button>
-                    </form>
-                    <form action="{{ url_for('supplier_orders') }}" method="POST">
-                        <input type="hidden" name="order_id" value="{{ order.order_id }}">
-                        <button type="submit" name="action" value="reject">Reject</button>
-                    </form>
-                </div>
             </div>
             {% endfor %}
         {% else %}

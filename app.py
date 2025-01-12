@@ -281,15 +281,12 @@ def update_card_quantity(card_id, delta):
         print("Ошибка update_card_quantity:", e)
         return False
 
-# Новый маршрут для поставщика: просмотр заявок
-@app.route('/supplier/orders', methods=['GET', 'POST'])
+# Новый маршрут для поставщика: просмотр заявок без возможности принимать/отклонять
+@app.route('/supplier/orders', methods=['GET'])
 def supplier_orders():
     """
     На этой странице поставщика отображаются заявки покупателей.
-    Для каждой заявки выводится имя покупателя, название товара, желаемое количество
-    и кнопки для одобрения или отклонения.
-    При нажатии на кнопку обрабатывается POST-запрос, обновляется статус заявки,
-    а при одобрении происходит списание товара со склада.
+    Здесь заявки выводятся только для просмотра без возможности принимать или отклонять их.
     """
     username = request.cookies.get('username')
     if not username:
@@ -299,43 +296,6 @@ def supplier_orders():
         return redirect(url_for('login'))
     supplier_id = user['id']
     message = None
-
-    if request.method == 'POST':
-        order_id = request.form.get('order_id')
-        action = request.form.get('action')
-        if not order_id or not action:
-            message = "Некорректные данные заявки."
-        else:
-            if action == 'approve':
-                # Сначала изменяем статус заявки на approved
-                if update_order_status(order_id, 'approved'):
-                    # Получаем данные заявки, чтобы списать товар
-                    # Допустим, для упрощения, получаем card_id через orders и списываем desired_qty
-                    conn = sqlite3.connect('Main.db')
-                    cursor = conn.cursor()
-                    cursor.execute('SELECT card_id, desired_qty FROM orders WHERE id=?', (order_id,))
-                    result = cursor.fetchone()
-                    conn.close()
-                    if result:
-                        card_id, desired_qty = result[0], result[1]
-                        # Пытаемся списать товар
-                        if update_card_quantity(card_id, -desired_qty):
-                            message = f"Заявка #{order_id} успешно одобрена, товар списан."
-                        else:
-                            # Если товара не хватает, откатываем статус заявки
-                            update_order_status(order_id, 'pending')
-                            message = f"Недостаточно товара для заявки #{order_id}."
-                    else:
-                        message = "Заявка не найдена."
-                else:
-                    message = f"Ошибка при обновлении заявки #{order_id}."
-            elif action == 'reject':
-                if update_order_status(order_id, 'rejected'):
-                    message = f"Заявка #{order_id} отклонена."
-                else:
-                    message = f"Ошибка при отклонении заявки #{order_id}."
-            else:
-                message = "Неизвестное действие."
 
     orders = get_orders_by_supplier(supplier_id)
     return render_template('supplierOrders.html', orders=orders, message=message, username=username)
