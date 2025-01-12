@@ -1,9 +1,9 @@
-<!-- templates/mainSupply.html -->
+<!-- templates/mainBusiness.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Supplier Dashboard</title>
+    <title>Supplier Dashboard &amp; Orders</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -21,7 +21,7 @@
             top: 10px;
             left: 20px;
         }
-        /* Существующий стиль для заголовка или другой шапки */
+        /* Заголовок (в правом верхнем углу) */
         .header {
             position: absolute;
             top: 10px;
@@ -29,40 +29,45 @@
             font-size: 14px;
             color: #666;
         }
-        .form-container, .cards-container {
+        .form-container, .cards-container, .orders-container {
             width: 100%;
             max-width: 600px;
             margin: 20px 0;
         }
-        .card {
+        .card, .order-card {
             border: 1px solid #ccc;
             padding: 10px;
             border-radius: 5px;
             margin-bottom: 10px;
             background-color: #fff;
         }
-        .card h2, .card p {
+        .card h2, .card p,
+        .order-card h3, .order-card p {
             margin: 0;
             margin-bottom: 5px;
+        }
+        .order-actions form {
+            display: inline-block;
+            margin-right: 5px;
         }
     </style>
 </head>
 <body>
-    <!-- Кнопка слева вверху: идём на страницу аккаунта поставщика -->
+    <!-- Кнопка слева вверху: переход на страницу аккаунта -->
     <div class="header-left">
         <form action="/supplier/account" method="GET">
             <button type="submit">{{ username }}</button>
         </form>
     </div>
 
-    <!-- Пример того, как вы раньше выводили логин или что-то ещё -->
+    <!-- Заголовок в правом верхнем углу -->
     <div class="header">
         <p>Logged in as: <strong>{{ username }}</strong></p>
     </div>
 
     <h1>Supplier Dashboard</h1>
 
-    <!-- Форма для добавления продуктов -->
+    <!-- Раздел с добавлением товаров (если используется) -->
     <div class="form-container">
         <form method="POST">
             <input type="text" name="name" placeholder="Product Name" required>
@@ -71,11 +76,11 @@
             <button type="submit">Add Product</button>
         </form>
         {% if error %}
-        <p style="color: red;">{{ error }}</p>
+            <p style="color: red;">{{ error }}</p>
         {% endif %}
     </div>
 
-    <!-- Список карточек -->
+    <!-- Список товаров поставщика -->
     <div class="cards-container">
         <h2>Your Products</h2>
         {% if cards %}
@@ -88,6 +93,37 @@
             {% endfor %}
         {% else %}
             <p>No products added yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Новая секция: Заявки на покупку -->
+    <div class="orders-container">
+        <h2>Purchase Orders</h2>
+        {% if orders %}
+            {% for order in orders %}
+            <div class="order-card">
+                <h3>Order #{{ order.order_id }}</h3>
+                <p><strong>Buyer:</strong> {{ order.buyer }}</p>
+                <p><strong>Product:</strong> {{ order.product_name }}</p>
+                <p><strong>Quantity:</strong> {{ order.desired_qty }}</p>
+                <p><strong>Status:</strong> {{ order.status }}</p>
+                <div class="order-actions">
+                    <form action="{{ url_for('supplier_orders') }}" method="POST">
+                        <input type="hidden" name="order_id" value="{{ order.order_id }}">
+                        <button type="submit" name="action" value="approve">Approve</button>
+                    </form>
+                    <form action="{{ url_for('supplier_orders') }}" method="POST">
+                        <input type="hidden" name="order_id" value="{{ order.order_id }}">
+                        <button type="submit" name="action" value="reject">Reject</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p>No orders available.</p>
+        {% endif %}
+        {% if message %}
+            <p>{{ message }}</p>
         {% endif %}
     </div>
 </body>
