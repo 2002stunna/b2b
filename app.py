@@ -195,13 +195,12 @@ def get_card_by_id(card_id):
         return None
 
 # Новый функционал для работы с заказами (orders)
-
 def create_order(card_id, buyer_id, desired_qty):
     """
     Создание заявки на покупку.
     Добавляется запись в таблицу orders с полями:
     (id, card_id, buyer_id, desired_qty, status)
-    status по умолчанию 'pending'
+    Статус по умолчанию установлен как "approved", поскольку подтверждение поставщика не требуется.
     """
     try:
         conn = sqlite3.connect('Main.db')
@@ -209,7 +208,7 @@ def create_order(card_id, buyer_id, desired_qty):
         cursor.execute('''
             INSERT INTO orders (card_id, buyer_id, desired_qty, status)
             VALUES (?, ?, ?, ?)
-        ''', (card_id, buyer_id, desired_qty, 'pending'))
+        ''', (card_id, buyer_id, desired_qty, 'approved'))
         conn.commit()
         conn.close()
         return True
@@ -301,12 +300,12 @@ def get_orders_by_buyer(buyer_id):
         print("Ошибка get_orders_by_buyer:", e)
         return []
 
-# Новый маршрут для поставщика: просмотр заявок без возможности принимать/отклонять
+# Новый маршрут для поставщика: просмотр заказов (без возможности подтверждения/отклонения)
 @app.route('/supplier/orders', methods=['GET'])
 def supplier_orders():
     """
-    На этой странице поставщика отображаются заявки покупателей.
-    Здесь заявки выводятся только для просмотра без возможности принимать или отклонять их.
+    На этой странице поставщика отображаются заказы покупателей.
+    Здесь заказы выводятся только для просмотра.
     """
     username = request.cookies.get('username')
     if not username:
@@ -441,9 +440,6 @@ def business_account():
         contact=account_data[5]
     )
 
-# -----------------------------------------------------------------------------
-# 8. Маршрут BUY: покупка товара
-# -----------------------------------------------------------------------------
 @app.route('/buy/<int:card_id>', methods=['GET','POST'])
 def buy_item(card_id):
     """
@@ -491,9 +487,6 @@ def buy_item(card_id):
     # Если GET
     return render_template('purchase.html', card=card)
 
-# -----------------------------------------------------------------------------
-# 9. Регистрация (заявка)
-# -----------------------------------------------------------------------------
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -512,9 +505,6 @@ def register():
         return render_template('Registration.html', success_message="Ожидайте подтверждения (пример)")
     return render_template('Registration.html')
 
-# -----------------------------------------------------------------------------
-# 10. Страница /security-service (Управление заявками и пользователями)
-# -----------------------------------------------------------------------------
 @app.route('/security-service', methods=['GET', 'POST'])
 def security_service():
     username = request.cookies.get('username')
