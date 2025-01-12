@@ -59,6 +59,22 @@
         .buy-button:hover {
             background-color: #218838;
         }
+        /* Новый стиль для кнопки "Настройка Face ID" - фиксированная кнопка в левом нижнем углу */
+        .faceid-settings-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        .faceid-settings-btn:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -143,6 +159,11 @@
             <p>You have not made any purchases yet.</p>
         {% endif %}
     </div>
+
+    <!-- Кнопка Настройки Face ID в нижнем левом углу -->
+    <button class="faceid-settings-btn" onclick="window.location.href='/faceid-settings'">
+        Настройка Face ID
+    </button>
 
 </body>
 </html>

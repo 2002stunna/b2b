@@ -74,6 +74,21 @@
             font-size: 14px;
             margin-top: 10px;
         }
+        /* Новый стиль для кнопки входа по Face ID */
+        .faceid-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .faceid-btn:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -90,7 +105,7 @@
             <div class="input-box2">
                 <input type="password" name="password" class="input-field" placeholder="Password" required>
             </div>
-            <!-- Кнопка -->
+            <!-- Кнопка входа по стандартной схеме -->
             <div class="button-container">
                 <button type="submit" class="login-button">Log In</button>
                 <a href="/register">
@@ -101,6 +116,10 @@
             <p class="error-message">{{ error }}</p>
             {% endif %}
         </form>
+        <!-- Новая кнопка: Вход по Face ID -->
+        <button type="button" class="faceid-btn" onclick="window.location.href='/webauthn-login'">
+            Вход по Face ID
+        </button>
     </div>
 </body>
 </html>

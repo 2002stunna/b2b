@@ -509,6 +509,37 @@ def register():
         return render_template('Registration.html', success_message="Ожидайте подтверждения (пример)")
     return render_template('Registration.html')
 
+# Маршрут для входа по Face ID (заглушка для WebAuthn)
+@app.route('/webauthn-login', methods=['GET'])
+def webauthn_login():
+    """
+    Заглушка для входа по Face ID. Здесь вы реализуете логику WebAuthn:
+    генерируете challenge, вызываете navigator.credentials.get() на клиенте и проверяете ответ.
+    Пока что просто осуществляем простую авторизацию.
+    """
+    # Для демонстрации примем, что Face ID успешно прошёл аутентификацию.
+    # Здесь нужно получить идентификатор пользователя по данным аутентификации (например, из Face ID)
+    # и выполнить вход. Пока для примера устанавливаем куки для тестового пользователя.
+    username = "faceid_user"  # Эта строка – пример, реальная логика должна возвращать пользователя из Face ID.
+    # Здесь можно выполнить поиск пользователя в базе по уникальному идентификатору, полученному от WebAuthn.
+    # Если пользователь найден, устанавливаем его куки и перенаправляем на нужную страницу.
+    response = make_response(redirect(url_for('business_page')))
+    response.set_cookie('username', username)
+    response.set_cookie('password', '')  # Пароль может не потребоваться
+    return response
+
+# Маршрут для настроек Face ID (заглушка)
+@app.route('/faceid-settings', methods=['GET'])
+def faceid_settings():
+    """
+    Заглушка для страницы настройки Face ID.
+    Здесь вы должны предоставить интерфейс для настройки и управления Face ID (например, регистрация аутентификатора через WebAuthn).
+    """
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+    return render_template('faceidSettings.html', username=username)
+
 @app.route('/security-service', methods=['GET', 'POST'])
 def security_service():
     username = request.cookies.get('username')
