@@ -22,6 +22,9 @@ server = Fido2Server({"id": RP_ID, "name": RP_NAME})
 # ---------------- Маршрут: Регистрация Face ID ----------------
 @app.route("/faceid/register", methods=["GET", "POST"])
 def register_faceid():
+    
+    logging.debug("penisOK")
+    
     username = request.cookies.get("username")
     if not username:
         return redirect(url_for("login"))
@@ -69,7 +72,7 @@ def register_faceid():
                 websafe_encode(auth_data.credential_data.user_handle),
             ))
             
-            logging.debug("penis OK")
+            logging.debug("penisOK")
             
             conn.commit()
             conn.close()
@@ -79,7 +82,7 @@ def register_faceid():
         except Exception as e:
             print(f"Ошибка регистрации Face ID: {e}")
             
-            logging.debug("penis BAD")
+            logging.debug("penisBAD")
             
             return jsonify({"status": "failed", "error": str(e)}), 400
 
