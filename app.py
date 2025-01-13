@@ -1,6 +1,7 @@
 from fido2.ctap2 import AttestedCredentialData
 import os
 import json
+from fido2.utils import websafe_encode
 from fido2.server import Fido2Server
 from fido2.webauthn import PublicKeyCredentialRpEntity, PublicKeyCredentialUserEntity
 import base64
