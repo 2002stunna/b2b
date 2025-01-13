@@ -122,42 +122,53 @@
 
     <!-- Допустим, этот код находится в login.html -->
     <script>
-        // Функция для преобразования строки в ArrayBuffer через TextEncoder
+        // Функция для преобразования hex-строки в Uint8Array
+        function hexStringToUint8Array(hexString) {
+            if (hexString.length % 2 !== 0) {
+                throw "Неверная hex-строка";
+            }
+            const arrayBuffer = new Uint8Array(hexString.length / 2);
+            for (let i = 0; i < hexString.length; i += 2) {
+                arrayBuffer[i / 2] = parseInt(hexString.substr(i, 2), 16);
+            }
+            return arrayBuffer;
+        }
+      
+        // Функция для преобразования строки в ArrayBuffer через TextEncoder (если потребуется)
         function stringToArrayBuffer(str) {
             return new TextEncoder().encode(str).buffer;
         }
-
+    
         document.getElementById("faceid-login-btn").addEventListener("click", async () => {
             try {
                 const response = await fetch("/auth/face-id/options", { method: "GET" });
                 if (!response.ok) {
-                    throw new Error("Failed to fetch authentication options.");
+                    throw new Error("Не удалось получить опции для аутентификации.");
                 }
                 let options = await response.json();
                 console.log("Получены опции для входа:", options);
-                
+    
+                // Преобразуем challenge из hex-строки в ArrayBuffer
+                options.challenge = hexStringToUint8Array(options.challenge).buffer;
+    
                 // Преобразуем allowCredentials.id из строки в ArrayBuffer
                 if (options.allowCredentials && Array.isArray(options.allowCredentials)) {
-                    options.allowCredentials = options.allowCredentials.map(cred => {
-                        return {
-                            ...cred,
-                            id: stringToArrayBuffer(cred.id)
-                        };
-                    });
+                    options.allowCredentials = options.allowCredentials.map(cred => ({
+                        ...cred,
+                        id: stringToArrayBuffer(cred.id)  // или hexStringToUint8Array(cred.id).buffer, если id в hex
+                    }));
                 }
-                
+    
                 // Вызываем WebAuthn API для аутентификации
                 const assertion = await navigator.credentials.get({ publicKey: options });
                 console.log("Получен assertion:", assertion);
-
-                // Отправляем необходимые данные на сервер для верификации
+    
                 const result = await fetch("/auth/face-id/verify", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        id: assertion.id,
-                        // При необходимости можно отправить также clientDataJSON и т.п.
-                        // Но для демонстрации наш сервер принимает только credential id.
+                        id: assertion.id
+                        // Можно также передать additional данные: clientDataJSON, authenticatorData, signature, userHandle
                     }),
                 });
                 const resData = await result.json();
@@ -165,7 +176,7 @@
                 if (resData.status === "ok") {
                     window.location.href = "/business";
                 } else {
-                    alert("Face ID verification failed.");
+                    alert("Ошибка Face ID при верификации.");
                 }
             } catch (error) {
                 console.error("Face ID authentication error:", error);
