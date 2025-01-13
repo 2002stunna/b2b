@@ -120,37 +120,59 @@
         <!-- Кнопка входа по Face ID -->
     <button type="button" id="faceid-login-btn" class="login-button">Вход по Face ID</button>
 
-    <script>
-        document.getElementById("faceid-login-btn").addEventListener("click", async () => {
-            try {
-                const response = await fetch("/auth/face-id/options", { method: "GET" });
-                if (!response.ok) {
-                    throw new Error("Failed to fetch authentication options.");
-                }
+    <!-- Допустим, этот код находится в login.html -->
+<script>
+    // Функция для преобразования строки в ArrayBuffer через TextEncoder
+    function stringToArrayBuffer(str) {
+        return new TextEncoder().encode(str).buffer;
+    }
 
-                const options = await response.json();
-
-                const assertion = await navigator.credentials.get({ publicKey: options });
-
-                const result = await fetch("/auth/face-id/verify", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(assertion),
-                });
-
-                const resData = await result.json();
-
-                if (resData.status === "ok") {
-                    window.location.href = "/business";
-                } else {
-                    alert("Face ID verification failed.");
-                }
-            } catch (error) {
-                console.error("Face ID authentication error:", error);
-                alert("Ошибка аутентификации Face ID.");
+    document.getElementById("faceid-login-btn").addEventListener("click", async () => {
+        try {
+            const response = await fetch("/auth/face-id/options", { method: "GET" });
+            if (!response.ok) {
+                throw new Error("Failed to fetch authentication options.");
             }
-        });
-    </script>
+            let options = await response.json();
+            console.log("Получены опции для входа:", options);
+            
+            // Преобразуем allowCredentials.id из строки в ArrayBuffer
+            if (options.allowCredentials && Array.isArray(options.allowCredentials)) {
+                options.allowCredentials = options.allowCredentials.map(cred => {
+                    return {
+                        ...cred,
+                        id: stringToArrayBuffer(cred.id)
+                    };
+                });
+            }
+            
+            // Вызываем WebAuthn API для аутентификации
+            const assertion = await navigator.credentials.get({ publicKey: options });
+            console.log("Получен assertion:", assertion);
+
+            // Отправляем необходимые данные на сервер для верификации
+            const result = await fetch("/auth/face-id/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: assertion.id,
+                    // При необходимости можно отправить также clientDataJSON и т.п.
+                    // Но для демонстрации наш сервер принимает только credential id.
+                }),
+            });
+            const resData = await result.json();
+            console.log("Результат верификации:", resData);
+            if (resData.status === "ok") {
+                window.location.href = "/business";
+            } else {
+                alert("Face ID verification failed.");
+            }
+        } catch (error) {
+            console.error("Face ID authentication error:", error);
+            alert("Ошибка аутентификации Face ID.");
+        }
+    });
+</script>
     </div>
 </body>
 </html>
