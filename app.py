@@ -1,3 +1,4 @@
+from fido2.ctap2 import AttestedCredentialData
 import os
 import json
 from fido2.server import Fido2Server
@@ -15,136 +16,161 @@ app.secret_key = os.urandom(32)  # Необходим для работы сес
 # Параметры RP
 
 # Настройки FIDO2
-RP_ID = "b2b-uvcj.onrender.com"
-RP_NAME = "B2B Platform"
-server = Fido2Server({"id": RP_ID, "name": RP_NAME})
+RP_ID = "b2b-uvcj.onrender.com"  # Замените на свой RP ID
+RP_NAME = "B2B"
+rp = PublicKeyCredentialRpEntity(id=RP_ID, name=RP_NAME)
+server = Fido2Server(rp)
 
 logging.debug("penis")
+
+
+DB_PATH = "Main.db"
 
 # ---------------- Маршрут: Регистрация Face ID ----------------
 @app.route("/faceid/register", methods=["GET", "POST"])
 def register_faceid():
-    
-    logging.debug("penisOK")
-    
-    username = request.cookies.get("username")
-    if not username:
-        return redirect(url_for("login"))
-
-    user = check_user(username, request.cookies.get("password"))
-    if not user:
-        return redirect(url_for("login"))
-
-    user_id = user["id"]
-
     if request.method == "GET":
-        # Генерация challenge для регистрации
-        registration_data, state = server.register_begin(
-            {"id": str(user_id).encode(), "name": username, "displayName": username},
-            user_verification="discouraged"
-        )
-        session["fido2_state"] = state
-        return jsonify({"publicKey": registration_data})
-
-    if request.method == "POST":
-        try:
-            data = request.get_json()
-            client_data = base64.b64decode(data["clientData"])
-            att_obj = base64.b64decode(data["attestationObject"])
-
-            # Завершаем регистрацию
-            auth_data = server.register_complete(
-                session.pop("fido2_state"),
-                client_data,
-                AttestationObject(att_obj),
-            )
-
-            # Сохраняем данные в базу
-            conn = sqlite3.connect("Main.db")
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO face_id_credentials (user_id, credential_id, public_key, sign_count, rp_id, user_handle)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                user_id,
-                websafe_encode(auth_data.credential_data.credential_id),
-                base64.b64encode(auth_data.credential_data.public_key).decode("utf-8"),
-                auth_data.sign_count,
-                RP_ID,
-                websafe_encode(auth_data.credential_data.user_handle),
-            ))
-            
-            logging.debug("penisOK")
-            
-            conn.commit()
-            conn.close()
-
-            return jsonify({"status": "ok"})
-
-        except Exception as e:
-            print(f"Ошибка регистрации Face ID: {e}")
-            
-            logging.debug("penisBAD")
-            
-            return jsonify({"status": "failed", "error": str(e)}), 400
-
-# ---------------- Маршрут: Вход через Face ID ----------------
-@app.route("/faceid/auth", methods=["POST"])
-def auth_faceid():
-    username = request.cookies.get("username")
-    if not username:
-        return redirect(url_for("login"))
-
-    user = check_user(username, request.cookies.get("password"))
-    if not user:
-        return redirect(url_for("login"))
-
-    user_id = user["id"]
-
-    try:
-        data = request.get_json()
-        client_data = base64.b64decode(data["clientData"])
-        auth_data = base64.b64decode(data["authenticatorData"])
-        signature = base64.b64decode(data["signature"])
-        credential_id = base64.b64decode(data["id"])
-
-        # Загружаем данные пользователя из базы
-        conn = sqlite3.connect("Main.db")
+        username = request.cookies.get("username")
+        if not username:
+            return redirect(url_for("login"))
+        
+        # Получение user_id из базы данных
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT public_key, sign_count FROM face_id_credentials WHERE user_id = ? AND credential_id = ?
-        ''', (user_id, websafe_encode(credential_id)))
-        row = cursor.fetchone()
+        cursor.execute("SELECT id FROM users WHERE username=?", (username,))
+        user = cursor.fetchone()
         conn.close()
 
-        if not row:
-            return jsonify({"error": "Face ID not registered"}), 404
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+        
+        user_id = user[0]
 
-        public_key, stored_sign_count = row
-
-        # Проверка подписи
-        server.authenticate_complete(
-            session["fido2_state"],
-            credential_id,
-            auth_data,
-            client_data,
-            signature,
-            base64.b64decode(public_key),
+        # Подготовка данных для регистрации
+        user_entity = PublicKeyCredentialUserEntity(
+            id=str(user_id).encode("utf-8"),
+            name=username,
+            display_name=username
+        )
+        registration_data, state = server.register_begin(
+            user_entity, user_verification="preferred"
         )
 
-        # Обновляем счётчик подписей
-        conn = sqlite3.connect("Main.db")
+        # Сохраняем состояние в сессии
+        session["fido2_registration_state"] = state
+
+        return jsonify(registration_data)
+
+    elif request.method == "POST":
+        # Получение данных от клиента
+        data = request.json
+        state = session.get("fido2_registration_state")
+
+        if not state:
+            return jsonify({"error": "No state found for registration"}), 400
+
+        # Проверка ответа
+        auth_data = server.register_complete(state, data["clientData"], data["attestationObject"])
+
+        # Сохранение данных в базу
+        username = request.cookies.get("username")
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
+        cursor.execute("SELECT id FROM users WHERE username=?", (username,))
+        user = cursor.fetchone()
+
+        if not user:
+            conn.close()
+            return jsonify({"error": "User not found"}), 404
+
+        user_id = user[0]
         cursor.execute('''
-            UPDATE face_id_credentials SET sign_count = sign_count + 1 WHERE user_id = ? AND credential_id = ?
-        ''', (user_id, websafe_encode(credential_id)))
+            INSERT INTO face_id_credentials (user_id, credential_id, public_key, sign_count, rp_id, user_handle)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            user_id,
+            base64.b64encode(auth_data.credential_id).decode("utf-8"),
+            base64.b64encode(auth_data.public_key).decode("utf-8"),
+            auth_data.sign_count,
+            RP_ID,
+            base64.b64encode(auth_data.user_handle).decode("utf-8"),
+        ))
         conn.commit()
         conn.close()
-        
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        print(f"Ошибка аутентификации Face ID: {e}")
-        return jsonify({"status": "failed", "error": str(e)}), 400
+
+        return jsonify({"status": "success"})
+
+# ---------------- Маршрут: Вход через Face ID ----------------
+@app.route("/faceid/login", methods=["GET", "POST"])
+def login_faceid():
+    if request.method == "GET":
+        username = request.cookies.get("username")
+        if not username:
+            return redirect(url_for("login"))
+
+        # Получение данных Face ID для пользователя
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT credential_id FROM face_id_credentials
+            JOIN users ON face_id_credentials.user_id = users.id
+            WHERE users.username=?
+        ''', (username,))
+        credentials = cursor.fetchall()
+        conn.close()
+
+        if not credentials:
+            return jsonify({"error": "No Face ID credentials found"}), 404
+
+        public_key_credentials = [
+            {"id": base64.b64decode(cred[0]), "type": "public-key"}
+            for cred in credentials
+        ]
+
+        auth_data = server.authenticate_begin(public_key_credentials)
+        session["fido2_auth_state"] = auth_data
+
+        return jsonify(auth_data)
+
+    elif request.method == "POST":
+        data = request.json
+        auth_state = session.get("fido2_auth_state")
+
+        if not auth_state:
+            return jsonify({"error": "No state found for authentication"}), 400
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT public_key, sign_count FROM face_id_credentials WHERE credential_id=?', 
+                       (base64.b64encode(data["credential"]["id"]).decode("utf-8"),))
+        credential = cursor.fetchone()
+
+        if not credential:
+            return jsonify({"error": "Credential not found"}), 404
+
+        # Проверка ответа
+        server.authenticate_complete(
+            auth_state,
+            data["credential"],
+            data["clientData"],
+            data["authenticatorData"],
+            data["signature"],
+            base64.b64decode(credential[0])
+        )
+
+        # Обновление счетчика
+        cursor.execute('''
+            UPDATE face_id_credentials
+            SET sign_count=?
+            WHERE credential_id=?
+        ''', (
+            data["authenticatorData"]["signCount"],
+            base64.b64encode(data["credential"]["id"]).decode("utf-8")
+        ))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "authenticated"})
 
 # ----------------- 1. Проверка пользователя ------------------
 def check_user(username, password):

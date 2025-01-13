@@ -161,9 +161,16 @@
     </div>
 
     <!-- Кнопка Настройки Face ID в нижнем левом углу -->
-    <button class="faceid-settings-btn" onclick="window.location.href='/faceid/register'">
-        Настройка Face ID
-    </button>
+    <button onclick="registerFaceID()">Зарегистрировать Face ID</button>
+
+    <script>
+        async function registerFaceID() {
+            const response = await fetch("/faceid/register", { method: "GET" });
+            const data = await response.json();
+            console.log("Registration options:", data);
+            // Реализация взаимодействия с WebAuthn API
+        }
+    </script>
 
 </body>
 </html>
