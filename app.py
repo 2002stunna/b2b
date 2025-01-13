@@ -20,9 +20,6 @@ RP_NAME = "My B2B App"
 fido2_server = Fido2Server({"id": RP_ID, "name": RP_NAME})
 app.secret_key = "your_secret_key"  # Установите уникальный ключ
 
-logging.debug("penis")
-
-
 DB_PATH = "Main.db"
 
 # ---------------- Маршрут: Регистрация Face ID ----------------
@@ -33,7 +30,7 @@ def register_begin():
     username = request.json['username']
     display_name = request.json['display_name']
 
-    user = PublicKeyCredentialUserEntity(id=user_id.encode(), name=username, displayName=display_name)
+    user = PublicKeyCredentialUserEntity(id=user_id.encode(), name=username, display_name=display_name)
     auth_selection = AuthenticatorSelectionCriteria(user_verification=UserVerificationRequirement.REQUIRED)
     pub_key_cred_params = [PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, 'ES256')]
 
@@ -84,7 +81,7 @@ def save_to_database(user_id, credential_id, public_key, sign_count):
         public_key.hex(),
         sign_count,
         RP_ID,
-        "user-id-12345"
+        user_id
     ))
     conn.commit()
     conn.close()
