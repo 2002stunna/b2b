@@ -37,7 +37,7 @@ def register_begin():
     options, state = fido2_server.register_begin(
         user=user,
         credentials=[],
-        authenticator_selection=auth_selection,
+        authenticatorSelection=auth_selection,
         pub_key_cred_params=pub_key_cred_params
     )
 
