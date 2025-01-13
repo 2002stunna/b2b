@@ -24,11 +24,34 @@ DB_PATH = "Main.db"
 
 # ---------------- Маршрут: Регистрация Face ID ----------------
 # Маршрут для начала регистрации
-@app.route('/register/begin', methods=['POST'])
-def register_begin():
+@app.route('/register', methods=['POST'])
+def register():
+    """
+    Объединенный маршрут для начала и завершения регистрации.
+    """
     try:
-        # Получаем данные из запроса
+        # Проверяем наличие данных в запросе
         data = request.json
+        if not data:
+            return jsonify({"error": "Invalid request, JSON body required"}), 400
+
+        if 'clientDataJSON' in data and 'attestationObject' in data:
+            # Завершение регистрации
+            return complete_registration(data)
+        else:
+            # Начало регистрации
+            return begin_registration(data)
+
+    except Exception as e:
+        logging.error(f"Error in /register: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def begin_registration(data):
+    """
+    Начало регистрации.
+    """
+    try:
         user_id = data.get('user_id')
         username = data.get('username')
         display_name = data.get('display_name')
@@ -58,52 +81,75 @@ def register_begin():
         session['state'] = state
 
         # Возвращаем параметры в формате JSON
-        return jsonify(options.to_json())
+        response = options.to_dict()
+        response["status"] = "ok"
+        return jsonify(response)
+
     except Exception as e:
-        logging.error(f"Error in register_begin: {str(e)}")
+        logging.error(f"Error in begin_registration: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
-# Маршрут для завершения регистрации
-@app.route('/register/complete', methods=['POST'])
-def register_complete():
-    data = request.json
-    client_data = ClientData(base64.b64decode(data['clientDataJSON']))
-    att_obj = AttestationObject(base64.b64decode(data['attestationObject']))
-    state = session['state']
 
-    auth_data = fido2_server.register_complete(state, client_data, att_obj)
-    
-    # Сохраните auth_data в базе данных
-    save_to_database(
-        user_id=data['user_id'],
-        credential_id=auth_data.credential_id,
-        public_key=auth_data.credential_public_key,
-        sign_count=auth_data.sign_count
-    )
+def complete_registration(data):
+    """
+    Завершение регистрации.
+    """
+    try:
+        client_data = ClientData(base64.b64decode(data.get('clientDataJSON', '')))
+        att_obj = AttestationObject(base64.b64decode(data.get('attestationObject', '')))
+        state = session.get('state')
 
-    return jsonify({'status': 'ok'})
+        if not state:
+            return jsonify({"error": "Session state not found"}), 400
+
+        # Завершаем регистрацию
+        auth_data = fido2_server.register_complete(state, client_data, att_obj)
+
+        # Сохраняем данные пользователя в базе данных
+        save_to_database(
+            user_id=data.get('user_id'),
+            credential_id=auth_data.credential_id,
+            public_key=auth_data.credential_public_key,
+            sign_count=auth_data.sign_count
+        )
+
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        logging.error(f"Error in complete_registration: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 
 def save_to_database(user_id, credential_id, public_key, sign_count):
     """
-    Сохранение зарегистрированных данных в базу данных
+    Сохраняет учетные данные пользователя в базе данных SQLite.
     """
-    import sqlite3
-    conn = sqlite3.connect('Main.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO face_id_credentials (user_id, credential_id, public_key, sign_count, rp_id, user_handle)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (
-        user_id,
-        credential_id.hex(),
-        public_key.hex(),
-        sign_count,
-        RP_ID,
-        user_id
-    ))
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Создаем таблицу, если её нет
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS credentials (
+                user_id TEXT NOT NULL,
+                credential_id BLOB NOT NULL UNIQUE,
+                public_key BLOB NOT NULL,
+                sign_count INTEGER NOT NULL,
+                PRIMARY KEY (credential_id)
+            )
+        ''')
+
+        # Вставляем данные
+        cursor.execute('''
+            INSERT INTO credentials (user_id, credential_id, public_key, sign_count)
+            VALUES (?, ?, ?, ?)
+        ''', (user_id, credential_id, public_key, sign_count))
+
+        conn.commit()
+        conn.close()
+        logging.info("User credential saved successfully")
+    except sqlite3.Error as e:
+        logging.error(f"Database error: {str(e)}")
+        raise
 
 # ---------------- Маршрут: Вход через Face ID ----------------
 @app.route("/faceid/login", methods=["GET", "POST"])
