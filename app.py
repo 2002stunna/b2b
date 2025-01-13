@@ -1,242 +1,18 @@
-# ---------------- Маршрут: Регистрация Face ID ----------------
-# Маршрут для начала регистрации
 import os
 import json
 import base64
-import logging
 import sqlite3
-from flask import Flask, request, jsonify, session
-from fido2.webauthn import (
-    PublicKeyCredentialCreationOptions,
-    PublicKeyCredentialParameters,
-    PublicKeyCredentialType,
-    AuthenticatorSelectionCriteria,
-    UserVerificationRequirement,
-    PublicKeyCredentialUserEntity
-)
-from fido2.ctap2 import AttestationObject
-from fido2.client import ClientData
-from fido2.server import Fido2Server
+from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify, session
 
-# Настройка логирования
-logging.basicConfig(level=logging.DEBUG)
-
-# Flask-приложение
 app = Flask(__name__)
-app.secret_key = "your_secret_key"  # Замените на безопасный секретный ключ
+app.secret_key = 'your_secret_key'  # Для использования session
 
-# Настройки FIDO2 сервера
-RP_ID = "b2b-uvcj.onrender.com"
-RP_NAME = "My B2B App"
-fido2_server = Fido2Server({"id": RP_ID, "name": RP_NAME})
-
-# Путь к базе данных SQLite
 DB_PATH = "Main.db"
-
-
-@app.route('/registerFACE', methods=['POST'])
-def registerFACEID():
-    """
-    Объединенный маршрут для начала и завершения регистрации.
-    """
-    try:
-        # Проверяем наличие данных в запросе
-        data = request.json
-        if not data:
-            return jsonify({"error": "Invalid request, JSON body required"}), 400
-
-        if 'clientDataJSON' in data and 'attestationObject' in data:
-            # Завершение регистрации
-            return complete_registration(data)
-        else:
-            # Начало регистрации
-            return begin_registration(data)
-
-    except Exception as e:
-        logging.error(f"Error in /registerFACE: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
-
-def begin_registration(data):
-    """
-    Начало регистрации.
-    """
-    try:
-        user_id = data.get('user_id')
-        username = data.get('username')
-        display_name = data.get('display_name')
-
-        if not all([user_id, username, display_name]):
-            return jsonify({"error": "Missing required fields: user_id, username, or display_name"}), 400
-
-        # Создаем объект пользователя
-        user = PublicKeyCredentialUserEntity(
-            id=user_id.encode(),
-            name=username,
-            display_name=display_name
-        )
-
-        # Указываем параметры для ключей
-        pub_key_cred_params = [
-            PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, 'ES256')
-        ]
-
-        # Начинаем регистрацию
-        options, state = fido2_server.register_begin(
-            user=user,
-            credentials=[]
-        )
-
-        # Сохраняем состояние в сессии
-        session['state'] = state
-
-        # Возвращаем параметры в формате JSON
-        response = options.to_dict()
-        response["status"] = "ok"
-        return jsonify(response)
-
-    except Exception as e:
-        logging.error(f"Error in begin_registration: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
-
-def complete_registration(data):
-    """
-    Завершение регистрации.
-    """
-    try:
-        client_data = ClientData(base64.b64decode(data.get('clientDataJSON', '')))
-        att_obj = AttestationObject(base64.b64decode(data.get('attestationObject', '')))
-        state = session.get('state')
-
-        if not state:
-            return jsonify({"error": "Session state not found"}), 400
-
-        # Завершаем регистрацию
-        auth_data = fido2_server.register_complete(state, client_data, att_obj)
-
-        # Сохраняем данные пользователя в базе данных
-        save_to_database(
-            user_id=data.get('user_id'),
-            credential_id=auth_data.credential_id,
-            public_key=auth_data.credential_public_key,
-            sign_count=auth_data.sign_count
-        )
-
-        return jsonify({'status': 'ok'})
-    except Exception as e:
-        logging.error(f"Error in complete_registration: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
-
-def save_to_database(user_id, credential_id, public_key, sign_count):
-    """
-    Сохраняет учетные данные пользователя в базе данных SQLite.
-    """
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        # Создаем таблицу, если её нет
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS credentials (
-                user_id TEXT NOT NULL,
-                credential_id BLOB NOT NULL UNIQUE,
-                public_key BLOB NOT NULL,
-                sign_count INTEGER NOT NULL,
-                PRIMARY KEY (credential_id)
-            )
-        ''')
-
-        # Вставляем данные
-        cursor.execute('''
-            INSERT INTO credentials (user_id, credential_id, public_key, sign_count)
-            VALUES (?, ?, ?, ?)
-        ''', (user_id, credential_id, public_key, sign_count))
-
-        conn.commit()
-        conn.close()
-        logging.info("User credential saved successfully")
-    except sqlite3.Error as e:
-        logging.error(f"Database error: {str(e)}")
-        raise
-
-# ---------------- Маршрут: Вход через Face ID ----------------
-@app.route("/faceid/login", methods=["GET", "POST"])
-def login_faceid():
-    if request.method == "GET":
-        username = request.cookies.get("username")
-        if not username:
-            return redirect(url_for("login"))
-
-        # Получение данных Face ID для пользователя
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT credential_id FROM face_id_credentials
-            JOIN users ON face_id_credentials.user_id = users.id
-            WHERE users.username=?
-        ''', (username,))
-        credentials = cursor.fetchall()
-        conn.close()
-
-        if not credentials:
-            return jsonify({"error": "No Face ID credentials found"}), 404
-
-        public_key_credentials = [
-            {"id": base64.b64decode(cred[0]), "type": "public-key"}
-            for cred in credentials
-        ]
-
-        auth_data = server.authenticate_begin(public_key_credentials)
-        session["fido2_auth_state"] = auth_data
-
-        return jsonify(auth_data)
-
-    elif request.method == "POST":
-        data = request.json
-        auth_state = session.get("fido2_auth_state")
-
-        if not auth_state:
-            return jsonify({"error": "No state found for authentication"}), 400
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('SELECT public_key, sign_count FROM face_id_credentials WHERE credential_id=?', 
-                       (base64.b64encode(data["credential"]["id"]).decode("utf-8"),))
-        credential = cursor.fetchone()
-
-        if not credential:
-            return jsonify({"error": "Credential not found"}), 404
-
-        # Проверка ответа
-        server.authenticate_complete(
-            auth_state,
-            data["credential"],
-            data["clientData"],
-            data["authenticatorData"],
-            data["signature"],
-            base64.b64decode(credential[0])
-        )
-
-        # Обновление счетчика
-        cursor.execute('''
-            UPDATE face_id_credentials
-            SET sign_count=?
-            WHERE credential_id=?
-        ''', (
-            data["authenticatorData"]["signCount"],
-            base64.b64encode(data["credential"]["id"]).decode("utf-8")
-        ))
-        conn.commit()
-        conn.close()
-
-        return jsonify({"status": "authenticated"})
 
 # ----------------- 1. Проверка пользователя ------------------
 def check_user(username, password):
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM users WHERE username=? AND password=?', (username, password))
         row = cursor.fetchone()
@@ -252,7 +28,7 @@ def check_user(username, password):
 # ----------------- 2. Pending users (заявки) операции ------------------
 def get_all_pending():
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM pending_users')
         rows = cursor.fetchall()
@@ -264,7 +40,7 @@ def get_all_pending():
 
 def update_pending_status(pending_id, new_status):
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('UPDATE pending_users SET status=? WHERE id=?', (new_status, pending_id))
         conn.commit()
@@ -277,7 +53,7 @@ def update_pending_status(pending_id, new_status):
 def move_pending_to_users(pending_id):
     """Перенести запись из pending_users в users (по заявке)."""
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         # Получим запись
         cursor.execute('SELECT * FROM pending_users WHERE id=?', (pending_id,))
@@ -301,7 +77,7 @@ def move_pending_to_users(pending_id):
 # ----------------- 3. Users (основная таблица) операции ------------------
 def get_all_users():
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM users')
         rows = cursor.fetchall()
@@ -313,7 +89,7 @@ def get_all_users():
 
 def add_user(username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact):
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO users (username, password, role, LegalName, INN, KPP, OGRN, LegalAddress, Contact)
@@ -328,7 +104,7 @@ def add_user(username, password, role, legal_name, inn, kpp, ogrn, legal_address
 
 def update_user(user_id, username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact):
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
             UPDATE users
@@ -344,7 +120,7 @@ def update_user(user_id, username, password, role, legal_name, inn, kpp, ogrn, l
 
 def delete_user(user_id):
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('DELETE FROM users WHERE id=?', (user_id,))
         conn.commit()
@@ -357,7 +133,7 @@ def delete_user(user_id):
 # ----------------- 4. Работа с карточками ------------------
 def get_all_cards():
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM cards')
         cards = cursor.fetchall()
@@ -369,7 +145,7 @@ def get_all_cards():
 
 def get_cards_by_supplier(supplier_id):
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM cards WHERE supplier_id=?', (supplier_id,))
         rows = cursor.fetchall()
@@ -381,7 +157,7 @@ def get_cards_by_supplier(supplier_id):
 
 def save_card_to_db(name, quantity, price, supplier_id):
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('INSERT INTO cards (name, quantity, price, supplier_id) VALUES (?, ?, ?, ?)',
                        (name, quantity, price, supplier_id))
@@ -393,7 +169,7 @@ def save_card_to_db(name, quantity, price, supplier_id):
 # ----------------- 5. Получение информации об аккаунте ------------------
 def get_user_account(username):
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('SELECT LegalName, INN, KPP, OGRN, LegalAddress, Contact FROM users WHERE username=?', (username,))
         row = cursor.fetchone()
@@ -406,7 +182,7 @@ def get_user_account(username):
 # ----------------- 6. ДОПОЛНИТЕЛЬНО: Получение карточки по id ------------------
 def get_card_by_id(card_id):
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM cards WHERE id=?', (card_id,))
         row = cursor.fetchone()
@@ -430,10 +206,10 @@ def create_order(card_id, buyer_id, desired_qty):
     Создание заявки на покупку.
     Добавляется запись в таблицу orders с полями:
     (id, card_id, buyer_id, desired_qty, status)
-    Статус по умолчанию установлен как "approved", поскольку подтверждение поставщика не требуется.
+    Статус по умолчанию установлен как "approved".
     """
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO orders (card_id, buyer_id, desired_qty, status)
@@ -449,10 +225,10 @@ def create_order(card_id, buyer_id, desired_qty):
 def get_orders_by_supplier(supplier_id):
     """
     Получение заявок для товаров конкретного поставщика.
-    Производится JOIN с таблицей users для получения имени покупателя.
+    JOIN с таблицей users для получения имени покупателя.
     """
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
             SELECT o.id, u.username, o.desired_qty, o.status, c.name
@@ -471,10 +247,9 @@ def get_orders_by_supplier(supplier_id):
 def update_order_status(order_id, new_status):
     """
     Обновление статуса заявки.
-    new_status может быть 'approved' или 'rejected'.
     """
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('UPDATE orders SET status=? WHERE id=?', (new_status, order_id))
         conn.commit()
@@ -486,10 +261,10 @@ def update_order_status(order_id, new_status):
 
 def update_card_quantity(card_id, delta):
     """
-    Изменение количества товара на складе на величину delta (может быть отрицательным).
+    Изменение количества товара на складе на величину delta.
     """
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('SELECT quantity FROM cards WHERE id=?', (card_id,))
         row = cursor.fetchone()
@@ -508,14 +283,13 @@ def update_card_quantity(card_id, delta):
         print("Ошибка update_card_quantity:", e)
         return False
 
-# Новый функционал для покупателя: получение заказов (покупок)
 def get_orders_by_buyer(buyer_id):
     """
     Получение заказов для покупателя по его ID.
-    Производится JOIN с таблицей cards для получения названия товара.
+    JOIN с таблицей cards для получения названия товара.
     """
     try:
-        conn = sqlite3.connect('Main.db')
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute('''
             SELECT o.id, c.name, o.desired_qty, o.status
@@ -530,30 +304,7 @@ def get_orders_by_buyer(buyer_id):
         print("Ошибка get_orders_by_buyer:", e)
         return []
 
-# Новый маршрут для поставщика: просмотр заказов (без возможности подтверждения/отклонения)
-@app.route('/supplier/orders', methods=['GET'])
-def supplier_orders():
-    """
-    На этой странице поставщика отображаются заказы покупателей.
-    Здесь заказы выводятся только для просмотра.
-    """
-    username = request.cookies.get('username')
-    if not username:
-        return redirect(url_for('login'))
-    user = check_user(username, request.cookies.get('password'))
-    if not user or user['role'] != 'supplier':
-        return redirect(url_for('login'))
-    supplier_id = user['id']
-    message = None
-
-    orders = get_orders_by_supplier(supplier_id)
-    return render_template('mainBusiness.html', orders=orders, message=message, username=username)
-# <<< НОВЫЙ ФУНКЦИОНАЛ <<<
-
-# -----------------------------------------------------------------------------
-# 7. Маршруты: LOGIN, SUPPLIER, BUSINESS, и т.д.
-# (Остальные маршруты ниже не изменялись)
-# -----------------------------------------------------------------------------
+# ----------------------- Маршруты (остальные) -----------------------
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -587,7 +338,6 @@ def supplier_page():
     if not user or user['role'] != 'supplier':
         return redirect(url_for('login'))
 
-    # Обработка POST-запроса для добавления товара
     if request.method == 'POST':
         name = request.form.get('name')
         quantity = request.form.get('quantity')
@@ -596,7 +346,6 @@ def supplier_page():
             save_card_to_db(name, quantity, float(price), user['id'])
             return redirect(url_for('supplier_page'))
 
-    # Получаем товары и заказы для данного поставщика
     cards = get_cards_by_supplier(user['id'])
     orders = get_orders_by_supplier(user['id'])
 
@@ -659,12 +408,10 @@ def business_account():
 
     account_data = get_user_account(username)
     if not account_data:
-        # Если нет данных, отрендерим mainAccount.html, но передадим ошибку
         return render_template('mainAccount.html', error="Account data not found.", username=username)
 
-    # Если данные получены, отрендерим тот же шаблон (или другой, если хотите)
     return render_template(
-        'mainAccount.html',  # Или 'mainAccountBusiness.html'
+        'mainAccount.html',
         username=username,
         legal_name=account_data[0],
         inn=account_data[1],
@@ -676,10 +423,6 @@ def business_account():
 
 @app.route('/buy/<int:card_id>', methods=['GET','POST'])
 def buy_item(card_id):
-    """
-    При GET – рендерим purchase.html с данными о товаре.
-    При POST – обрабатываем покупку (количество) и создаём заявку на покупку.
-    """
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
@@ -687,7 +430,6 @@ def buy_item(card_id):
     user = check_user(username, request.cookies.get('password'))
     if not user:
         return redirect(url_for('login'))
-    # По желанию можно проверить, что user['role'] == 'business' (или другая логика)
 
     card = get_card_by_id(card_id)
     if not card:
@@ -707,18 +449,14 @@ def buy_item(card_id):
             return render_template('purchase.html', card=card, error="Количество должно быть > 0")
 
         if desired_qty > card['quantity']:
-            return render_template('purchase.html', card=card,
-                                   error="Недостаточно товара на складе!")
+            return render_template('purchase.html', card=card, error="Недостаточно товара на складе!")
         
-        # >>> МОДИФИКАЦИЯ: Создаём заявку вместо непосредственного вычитания со склада
         if create_order(card_id, user['id'], desired_qty):
             success_msg = f"Ваша заявка на покупку {desired_qty} шт. товара «{card['name']}» отправлена поставщику."
             return render_template('purchase.html', card=None, success=success_msg)
         else:
             return render_template('purchase.html', card=card, error="Ошибка при создании заявки.")
-        # <<< МОДИФИКАЦИЯ
 
-    # Если GET
     return render_template('purchase.html', card=card)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -735,25 +473,148 @@ def register():
         contact = request.form.get('contact')
         if not all([username, password, role, legal_name, inn, kpp, ogrn, legal_address, contact]):
             return render_template('Registration.html', error="All fields are required!")
-        # ... Сохраняем в pending_users, возвращаем pending_id ...
+        # Здесь можно сохранить заявку в pending_users и показать сообщение
         return render_template('Registration.html', success_message="Ожидайте подтверждения (пример)")
     return render_template('Registration.html')
+
+# ----------------- FACE ID REGISTRATION / Вход -----------------
+
+# Страница настроек Face ID (для покупателя)
+@app.route('/faceid-settings', methods=['GET'])
+def faceid_settings():
+    username = request.cookies.get('username')
+    if not username:
+        return redirect(url_for('login'))
+    user = check_user(username, request.cookies.get('password'))
+    if not user:
+        return redirect(url_for('login'))
+    return render_template('faceid_settings.html', username=username, user_id=user['id'], display_name=user['username'])
+
+# Эндпоинт для начала регистрации Face ID
+@app.route('/register/begin', methods=['POST'])
+def register_begin():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    username = data.get('username')
+    display_name = data.get('display_name')
+    # Генерируем случайный challenge
+    challenge = os.urandom(32).hex()
+    # В production необходимо сохранить challenge в session и валидировать позже
+    options = {
+         "publicKey": {
+            "challenge": challenge,
+            "rp": {"name": "Demo RP", "id": request.host.split(':')[0]},
+            "user": {
+                "id": str(user_id),
+                "name": username,
+                "displayName": display_name
+            },
+            "pubKeyCredParams": [{"type": "public-key", "alg": -7}],
+            "timeout": 60000,
+            "attestation": "direct"
+         }
+    }
+    return jsonify(options)
+
+# Эндпоинт для завершения регистрации Face ID
+@app.route('/register/complete', methods=['POST'])
+def register_complete():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    clientDataJSON = data.get('clientDataJSON')
+    attestationObject = data.get('attestationObject')
+    # Здесь должна выполняться валидация attestation и извлечение credential_id, public_key и пр.
+    # Для демонстрации используем заглушку:
+    credential_id = f"credential_{user_id}"
+    public_key = "dummy_public_key"
+    rp_id = request.host.split(':')[0]
+    user_handle = str(user_id)
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO face_id_credentials (user_id, credential_id, public_key, rp_id, user_handle)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, credential_id, public_key, rp_id, user_handle))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok", "message": "Face ID registration complete."})
+    except Exception as e:
+        print("Ошибка регистрации Face ID:", e)
+        return jsonify({"status": "error", "message": str(e)})
+
+# Эндпоинт для получения опций входа по Face ID
+@app.route('/auth/face-id/options', methods=['GET'])
+def faceid_login_options():
+    challenge = os.urandom(32).hex()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT credential_id FROM face_id_credentials')
+        rows = cursor.fetchall()
+        conn.close()
+        allowed = [{"type": "public-key", "id": row[0]} for row in rows]
+    except Exception as e:
+        allowed = []
+    options = {
+         "challenge": challenge,
+         "allowCredentials": allowed,
+         "timeout": 60000,
+         "rpId": request.host.split(':')[0]
+    }
+    return jsonify(options)
+
+# Эндпоинт для верификации входа по Face ID
+@app.route('/auth/face-id/verify', methods=['POST'])
+def faceid_verify():
+    data = request.get_json()
+    credential_id = data.get('id')
+    if not credential_id:
+        return jsonify({"status": "error", "message": "No credential id provided."})
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT user_id FROM face_id_credentials WHERE credential_id=?', (credential_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            user_id = row[0]
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute('SELECT username, password, role FROM users WHERE id=?', (user_id,))
+            user_row = cursor.fetchone()
+            conn.close()
+            if user_row:
+                username = user_row[0]
+                password = user_row[1]
+                response = make_response(jsonify({"status": "ok"}))
+                response.set_cookie("username", username)
+                response.set_cookie("password", password)
+                return response
+    except Exception as e:
+        print("Ошибка Face ID верификации:", e)
+    return jsonify({"status": "error", "message": "Verification failed."})
+
+# ----------------------- Остальные маршруты -----------------------
+@app.route('/webauthn-login', methods=['GET'])
+def webauthn_login():
+    username = "faceid_user"  # Заглушка
+    response = make_response(redirect(url_for('business_page')))
+    response.set_cookie('username', username)
+    response.set_cookie('password', '')
+    return response
 
 @app.route('/security-service', methods=['GET', 'POST'])
 def security_service():
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
-
     user = check_user(username, request.cookies.get('password'))
     if not user or user['role'] != 'security':
         return redirect(url_for('login'))
-
     message = None
-
     if request.method == 'POST':
         action = request.form.get('action')
-
         if action == 'approve_pending':
             pending_id = request.form.get('pending_id')
             if pending_id:
@@ -763,7 +624,6 @@ def security_service():
                     message = f"Заявка #{pending_id} одобрена и пользователь добавлен."
                 else:
                     message = f"Ошибка: {msg}"
-
         elif action == 'reject_pending':
             pending_id = request.form.get('pending_id')
             if pending_id:
@@ -772,7 +632,6 @@ def security_service():
                     message = f"Заявка #{pending_id} отклонена."
                 else:
                     message = "Ошибка при отклонении заявки."
-
         elif action == 'add_user':
             new_username = request.form.get('username')
             new_password = request.form.get('password')
@@ -783,13 +642,11 @@ def security_service():
             new_ogrn = request.form.get('ogrn')
             new_legal_address = request.form.get('legal_address')
             new_contact = request.form.get('contact')
-
             ok = add_user(new_username, new_password, new_role, new_legal_name, new_inn, new_kpp, new_ogrn, new_legal_address, new_contact)
             if ok:
                 message = f"Пользователь {new_username} добавлен."
             else:
                 message = "Ошибка при добавлении пользователя."
-
         elif action == 'update_user':
             user_id = request.form.get('user_id')
             new_username = request.form.get('username')
@@ -801,13 +658,11 @@ def security_service():
             new_ogrn = request.form.get('ogrn')
             new_legal_address = request.form.get('legal_address')
             new_contact = request.form.get('contact')
-
             ok = update_user(user_id, new_username, new_password, new_role, new_legal_name, new_inn, new_kpp, new_ogrn, new_legal_address, new_contact)
             if ok:
                 message = f"Пользователь #{user_id} обновлён."
             else:
                 message = "Ошибка при обновлении пользователя."
-
         elif action == 'delete_user':
             user_id = request.form.get('user_id')
             ok = delete_user(user_id)
@@ -815,17 +670,12 @@ def security_service():
                 message = f"Пользователь #{user_id} удалён."
             else:
                 message = "Ошибка при удалении пользователя."
-
     pending_list = get_all_pending()
     user_list = get_all_users()
-
     return render_template('SecurityService.html',
                            pending_list=pending_list,
                            user_list=user_list,
                            message=message)
 
-# -----------------------------------------------------------------------------
-# 11. Запуск
-# -----------------------------------------------------------------------------
 if __name__ == '__main__':
     app.run(debug=True)

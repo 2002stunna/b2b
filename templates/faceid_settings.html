@@ -1,0 +1,85 @@
+<!-- templates/faceid_settings.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Настройки Face ID</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        .register-btn {
+            margin-top: 20px;
+            padding: 10px 15px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .register-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Настройка Face ID</h1>
+        <p>Нажмите кнопку ниже, чтобы зарегистрировать ваши данные Face ID.</p>
+        <button class="register-btn" id="register-btn">Зарегистрировать Face ID</button>
+        <p id="result-msg"></p>
+        <p><a href="/business">Вернуться в кабинет</a></p>
+    </div>
+
+    <script>
+        document.getElementById("register-btn").addEventListener("click", async () => {
+            try {
+                // Запрос опций для регистрации Face ID
+                const beginResponse = await fetch("/register/begin", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        user_id: "{{ user_id }}",
+                        username: "{{ username }}",
+                        display_name: "{{ display_name }}"
+                    })
+                });
+                const options = await beginResponse.json();
+                // Запуск создания credential через WebAuthn API
+                const credential = await navigator.credentials.create({ publicKey: options.publicKey });
+                // Передача клиентских данных для завершения регистрации
+                const completeResponse = await fetch("/register/complete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        user_id: "{{ user_id }}",
+                        clientDataJSON: credential.response.clientDataJSON,
+                        attestationObject: credential.response.attestationObject
+                    })
+                });
+                const result = await completeResponse.json();
+                document.getElementById("result-msg").textContent = result.message;
+            } catch (error) {
+                console.error("Ошибка при регистрации Face ID:", error);
+                document.getElementById("result-msg").textContent = "Ошибка при регистрации Face ID.";
+            }
+        });
+    </script>
+</body>
+</html>

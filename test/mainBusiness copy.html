@@ -21,7 +21,7 @@
             top: 10px;
             left: 20px;
         }
-        /* Логин в правом верхнем углу */
+        /* Уже существующий стиль, привязанный к правому углу */
         .header {
             position: absolute;
             top: 10px;
@@ -46,9 +46,10 @@
             margin: 0;
             margin-bottom: 5px;
         }
+        /* Стиль для кнопки "Купить" */
         .buy-button {
             margin-top: 10px;
-            background-color: #28a745;
+            background-color: #28a745; /* Зеленая кнопка */
             color: white;
             border: none;
             padding: 6px 10px;
@@ -58,15 +59,18 @@
         .buy-button:hover {
             background-color: #218838;
         }
-        /* Кнопка перехода на настройки Face ID */
+        /* Новый стиль для кнопки "Настройка Face ID" - фиксированная кнопка в левом нижнем углу */
         .faceid-settings-btn {
-            margin-top: 20px;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
             background-color: #007bff;
             color: #fff;
-            border: none;
             padding: 10px 15px;
+            border: none;
             border-radius: 4px;
             cursor: pointer;
+            z-index: 1000;
         }
         .faceid-settings-btn:hover {
             background-color: #0056b3;
@@ -75,28 +79,31 @@
 </head>
 <body>
 
-    <!-- Кнопка для перехода на страницу аккаунта -->
+    <!-- КНОПКА В ЛЕВОМ ВЕРХНЕМ УГЛУ, ведущая на страницу бизнес-аккаунта -->
     <div class="header-left">
         <form action="/business/account" method="GET">
             <button type="submit">{{ username }}</button>
         </form>
     </div>
 
-    <!-- Логин в правом верхнем углу -->
+    <!-- Вывод логина в правом верхнем углу -->
     <div class="header">
         Logged in as: <strong>{{ username }}</strong>
     </div>
 
     <h1>Business Dashboard</h1>
 
-    <!-- Раздел с карточками товаров -->
+    <!-- Секция для отображения товаров (продукты на продажу) -->
     <div class="cards-container" id="cards-container"></div>
 
     <script>
+        // Контейнер для карточек
         const cardsContainer = document.getElementById('cards-container');
+
+        // Функция для получения карточек с сервера
         async function fetchCards() {
             try {
-                const response = await fetch('/api/cards');
+                const response = await fetch('/api/cards'); // Запрос к API
                 if (response.ok) {
                     const cards = await response.json();
                     updateCards(cards);
@@ -107,8 +114,10 @@
                 console.error('Ошибка при получении карточек:', error);
             }
         }
+
+        // Функция для обновления карточек на странице
         function updateCards(cards) {
-            cardsContainer.innerHTML = '';
+            cardsContainer.innerHTML = ''; // Очищаем контейнер
             if (cards.length > 0) {
                 cards.forEach(card => {
                     const cardElement = document.createElement('div');
@@ -117,6 +126,7 @@
                         <h2>${card.name}</h2>
                         <p>Quantity: ${card.quantity}</p>
                         <p>Price: $${card.price}</p>
+                        <!-- Кнопка "Купить" -->
                         <form action="/buy/${card.id}" method="GET">
                             <button type="submit" class="buy-button">Купить</button>
                         </form>
@@ -127,11 +137,13 @@
                 cardsContainer.innerHTML = '<p>No products available at the moment.</p>';
             }
         }
+
+        // Первоначальная загрузка карточек и их обновление каждые 5 секунд
         fetchCards();
         setInterval(fetchCards, 5000);
     </script>
 
-    <!-- Раздел с заказами покупателя -->
+    <!-- Новый раздел: Покупки покупателя -->
     <div class="purchases-container">
         <h2>My Purchases</h2>
         {% if orders %}
@@ -148,10 +160,48 @@
         {% endif %}
     </div>
 
-    <!-- Кнопка для перехода на страницу настроек Face ID -->
-    <a href="/faceid-settings">
-        <button class="faceid-settings-btn">Настроить Face ID</button>
-    </a>
+    <!-- Кнопка Настройки Face ID в нижнем левом углу -->
+    <button class="faceid-settings-btn" onclick="registerFaceID()">Зарегистрировать Face ID</button>
+
+    <script>
+        async function registerFaceID() {
+            try {
+                const response = await fetch("/register/begin", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        user_id: "{{ user_id }}",
+                        username: "{{ username }}",
+                        display_name: "{{ display_name }}"
+                    })
+                });
+                const options = await response.json();
+                console.log("Registration options:", options);
+
+                const publicKey = options.publicKey;
+                const credential = await navigator.credentials.create({ publicKey });
+
+                const responseComplete = await fetch("/register/complete", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        user_id: "{{ user_id }}",
+                        clientDataJSON: credential.response.clientDataJSON,
+                        attestationObject: credential.response.attestationObject
+                    })
+                });
+
+                const result = await responseComplete.json();
+                console.log("Registration complete:", result);
+            } catch (error) {
+                console.error("Ошибка при регистрации Face ID:", error);
+            }
+        }
+    </script>
 
 </body>
 </html>
