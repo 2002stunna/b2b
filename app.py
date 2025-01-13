@@ -31,13 +31,11 @@ def register_begin():
     display_name = request.json['display_name']
 
     user = PublicKeyCredentialUserEntity(id=user_id.encode(), name=username, display_name=display_name)
-    auth_selection = AuthenticatorSelectionCriteria(user_verification=UserVerificationRequirement.REQUIRED)
     pub_key_cred_params = [PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, 'ES256')]
 
     options, state = fido2_server.register_begin(
         user=user,
         credentials=[],
-        authenticatorSelection=auth_selection,
         pub_key_cred_params=pub_key_cred_params
     )
 
