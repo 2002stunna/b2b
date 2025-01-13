@@ -11,16 +11,13 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
-app.secret_key = os.urandom(32)  # Необходим для работы сессий
 
-# Параметры RP
-
-# Настройки FIDO2
 
 # Настройки FIDO2 сервера
 RP_ID = "b2b-uvcj.onrender.com"
 RP_NAME = "My B2B App"
 fido2_server = Fido2Server({"id": RP_ID, "name": RP_NAME})
+app.secret_key = "your_secret_key"  # Установите уникальный ключ
 
 logging.debug("penis")
 
@@ -41,7 +38,7 @@ def register_faceid():
             user_verification="discouraged",
         )
         # Сохраняем состояние регистрации (можно сохранить в сессии или базе)
-        request.session['state'] = state
+        session['state'] = state
 
         # Убедитесь, что все данные сериализуемы
         registration_data_serializable = {
