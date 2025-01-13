@@ -5,4 +5,4 @@ py_webauthn==0.0.3
 pyOpenSSL==23.2.0
 cryptography
 oscrypto
-fido2
+fido2==0.9.0
