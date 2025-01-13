@@ -35,8 +35,7 @@ def register_begin():
 
     options, state = fido2_server.register_begin(
         user=user,
-        credentials=[],
-        pub_key_cred_params=pub_key_cred_params
+        credentials=[]
     )
 
     session['state'] = state
