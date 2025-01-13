@@ -65,10 +65,13 @@ def register_faceid():
                 RP_ID,
                 websafe_encode(auth_data.credential_data.user_handle),
             ))
+            
+            
             conn.commit()
             conn.close()
 
             return jsonify({"status": "ok"})
+
         except Exception as e:
             print(f"Ошибка регистрации Face ID: {e}")
             return jsonify({"status": "failed", "error": str(e)}), 400
@@ -127,7 +130,7 @@ def auth_faceid():
         conn.close()
         
         print(f"Сохраняем Face ID: {user_id}, {credential_id}, {public_key}, {sign_count}")
-
+        
         return jsonify({"status": "ok"})
     except Exception as e:
         print(f"Ошибка аутентификации Face ID: {e}")
