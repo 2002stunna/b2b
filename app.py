@@ -58,7 +58,7 @@ fido2_server = Fido2Server({"id": RP_ID, "name": RP_NAME})
 DB_PATH = "Main.db"
 
 
-@app.route('/register', methods=['POST'])
+@app.route('/registerFACE, methods=['POST'])
 def register():
     """
     Объединенный маршрут для начала и завершения регистрации.
@@ -77,7 +77,7 @@ def register():
             return begin_registration(data)
 
     except Exception as e:
-        logging.error(f"Error in /register: {str(e)}")
+        logging.error(f"Error in /registerFACE: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
 
