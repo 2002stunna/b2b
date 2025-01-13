@@ -35,7 +35,7 @@ DB_PATH = "Main.db"
 
 
 @app.route('/registerFACE', methods=['POST'])
-def register():
+def registerFACEID():
     """
     Объединенный маршрут для начала и завершения регистрации.
     """
