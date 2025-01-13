@@ -39,7 +39,10 @@ def register_begin():
     )
 
     session['state'] = state
-    return jsonify(options)
+
+    # Преобразование данных в строку перед отправкой ответа
+    options_dict = options.to_dict()
+    return jsonify(options_dict)
 
 # Маршрут для завершения регистрации
 @app.route('/register/complete', methods=['POST'])
