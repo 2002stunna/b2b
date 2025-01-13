@@ -24,6 +24,40 @@ DB_PATH = "Main.db"
 
 # ---------------- Маршрут: Регистрация Face ID ----------------
 # Маршрут для начала регистрации
+import os
+import json
+import base64
+import logging
+import sqlite3
+from flask import Flask, request, jsonify, session
+from fido2.webauthn import (
+    PublicKeyCredentialCreationOptions,
+    PublicKeyCredentialParameters,
+    PublicKeyCredentialType,
+    AuthenticatorSelectionCriteria,
+    UserVerificationRequirement,
+    PublicKeyCredentialUserEntity
+)
+from fido2.ctap2 import AttestationObject
+from fido2.client import ClientData
+from fido2.server import Fido2Server
+
+# Настройка логирования
+logging.basicConfig(level=logging.DEBUG)
+
+# Flask-приложение
+app = Flask(__name__)
+app.secret_key = "your_secret_key"  # Замените на безопасный секретный ключ
+
+# Настройки FIDO2 сервера
+RP_ID = "b2b-uvcj.onrender.com"
+RP_NAME = "My B2B App"
+fido2_server = Fido2Server({"id": RP_ID, "name": RP_NAME})
+
+# Путь к базе данных SQLite
+DB_PATH = "Main.db"
+
+
 @app.route('/register', methods=['POST'])
 def register():
     """
