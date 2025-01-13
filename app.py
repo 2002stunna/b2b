@@ -26,23 +26,42 @@ DB_PATH = "Main.db"
 # Маршрут для начала регистрации
 @app.route('/register/begin', methods=['POST'])
 def register_begin():
-    user_id = request.json['user_id']
-    username = request.json['username']
-    display_name = request.json['display_name']
+    try:
+        # Получаем данные из запроса
+        data = request.json
+        user_id = data.get('user_id')
+        username = data.get('username')
+        display_name = data.get('display_name')
 
-    user = PublicKeyCredentialUserEntity(id=user_id.encode(), name=username, display_name=display_name)
-    pub_key_cred_params = [PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, 'ES256')]
+        if not all([user_id, username, display_name]):
+            return jsonify({"error": "Missing required fields: user_id, username, or display_name"}), 400
 
-    options, state = fido2_server.register_begin(
-        user=user,
-        credentials=[]
-    )
+        # Создаем объект пользователя
+        user = PublicKeyCredentialUserEntity(
+            id=user_id.encode(),
+            name=username,
+            display_name=display_name
+        )
 
-    session['state'] = state
+        # Указываем параметры для ключей
+        pub_key_cred_params = [
+            PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, 'ES256')
+        ]
 
-    # Преобразование данных в строку перед отправкой ответа
-    options_dict = options.to_dict()
-    return jsonify(options_dict)
+        # Начинаем регистрацию
+        options, state = fido2_server.register_begin(
+            user=user,
+            credentials=[]
+        )
+
+        # Сохраняем состояние в сессии
+        session['state'] = state
+
+        # Возвращаем параметры в формате JSON
+        return jsonify(options.to_json())
+    except Exception as e:
+        logging.error(f"Error in register_begin: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 # Маршрут для завершения регистрации
 @app.route('/register/complete', methods=['POST'])
