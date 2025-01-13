@@ -16,10 +16,11 @@ app.secret_key = os.urandom(32)  # Необходим для работы сес
 # Параметры RP
 
 # Настройки FIDO2
-RP_ID = "b2b-uvcj.onrender.com"  # Замените на свой RP ID
-RP_NAME = "B2B"
-rp = PublicKeyCredentialRpEntity(id=RP_ID, name=RP_NAME)
-server = Fido2Server(rp)
+
+# Настройки FIDO2 сервера
+RP_ID = "b2b-uvcj.onrender.com"
+RP_NAME = "My B2B App"
+fido2_server = Fido2Server({"id": RP_ID, "name": RP_NAME})
 
 logging.debug("penis")
 
