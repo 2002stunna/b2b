@@ -1,27 +1,3 @@
-import os
-import json
-import base64
-from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify, session
-import sqlite3
-import logging
-from fido2.webauthn import PublicKeyCredentialCreationOptions, PublicKeyCredentialParameters, PublicKeyCredentialType, AuthenticatorSelectionCriteria, UserVerificationRequirement, PublicKeyCredentialUserEntity
-from fido2.ctap2 import AttestationObject
-from fido2.client import ClientData
-from fido2.server import Fido2Server
-
-logging.basicConfig(level=logging.DEBUG)
-
-app = Flask(__name__)
-
-
-# Настройки FIDO2 сервера
-RP_ID = "b2b-uvcj.onrender.com"
-RP_NAME = "My B2B App"
-fido2_server = Fido2Server({"id": RP_ID, "name": RP_NAME})
-app.secret_key = "your_secret_key"  # Установите уникальный ключ
-
-DB_PATH = "Main.db"
-
 # ---------------- Маршрут: Регистрация Face ID ----------------
 # Маршрут для начала регистрации
 import os
@@ -58,7 +34,7 @@ fido2_server = Fido2Server({"id": RP_ID, "name": RP_NAME})
 DB_PATH = "Main.db"
 
 
-@app.route('/registerFACE, methods=['POST'])
+@app.route('/registerFACE', methods=['POST'])
 def register():
     """
     Объединенный маршрут для начала и завершения регистрации.
