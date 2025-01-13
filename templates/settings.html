@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Настройка Face ID</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #333;
+    }
+    .container {
+      max-width: 500px;
+      width: 100%;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    p {
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    button {
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #result {
+      margin-top: 20px;
+      font-weight: bold;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Настройка Face ID для {{ username }}</h1>
+    <p>Нажмите кнопку ниже, чтобы зарегистрировать Face ID для входа с помощью вашего устройства.</p>
+    <button id="registerFaceIDBtn">Зарегистрировать Face ID</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    document.getElementById('registerFaceIDBtn').addEventListener('click', async function(){
+      // Пример опций для регистрации. Обычно они должны генерироваться на сервере,
+      // здесь для демонстрации используется простой пример.
+      const options = {
+        publicKey: {
+          // Пример простого challenge (нужно генерировать на сервере случайное значение)
+          challenge: Uint8Array.from('randomChallengeString', c => c.charCodeAt(0)),
+          rp: {
+            name: "My App"
+          },
+          user: {
+            // Для user.id лучше использовать двоичный идентификатор (например, UUID).
+            // Здесь для простоты берем имя пользователя в виде массива байтов.
+            id: Uint8Array.from('{{ username }}', c => c.charCodeAt(0)),
+            name: '{{ username }}',
+            displayName: '{{ username }}'
+          },
+          pubKeyCredParams: [
+            { type: "public-key", alg: -7 } // ES256
+          ],
+          timeout: 60000,
+          attestation: "direct"  // Тип аттестации, можно использовать "none" для упрощения
+        }
+      };
+
+      try {
+        // Вызов WebAuthn API для создания нового Credential
+        const credential = await navigator.credentials.create(options);
+        console.log("Получено credential:", credential);
+        // Здесь необходимо отправить credential на сервер для проверки и сохранения
+        document.getElementById('result').innerText = "Face ID успешно зарегистрирован!";
+      } catch (err) {
+        console.error("Ошибка при регистрации Face ID:", err);
+        document.getElementById('result').innerText = "Ошибка регистрации Face ID: " + err;
+      }
+    });
+  </script>
+</body>
+</html>

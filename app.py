@@ -531,14 +531,10 @@ def webauthn_login():
 # Маршрут для настроек Face ID (заглушка)
 @app.route('/faceid-settings', methods=['GET'])
 def faceid_settings():
-    """
-    Заглушка для страницы настройки Face ID.
-    Здесь вы должны предоставить интерфейс для настройки и управления Face ID (например, регистрация аутентификатора через WebAuthn).
-    """
     username = request.cookies.get('username')
     if not username:
         return redirect(url_for('login'))
-    return render_template('faceidSettings.html', username=username)
+    return render_template('settings.html', username=username)
 
 @app.route('/security-service', methods=['GET', 'POST'])
 def security_service():
