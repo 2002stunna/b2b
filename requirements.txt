@@ -4,3 +4,4 @@ Werkzeug==2.0.3
 py_webauthn==0.0.4
 pyOpenSSL==23.2.0
 cryptography
+oscrypto
