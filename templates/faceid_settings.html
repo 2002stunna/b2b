@@ -48,9 +48,31 @@
     </div>
 
     <script>
+        // Функция для конвертации hex-строки в Uint8Array
+        function hexStringToUint8Array(hexString) {
+            if (hexString.length % 2 !== 0) {
+                throw "Invalid hexString";
+            }
+            var arrayBuffer = new Uint8Array(hexString.length / 2);
+            for (var i = 0; i < hexString.length; i += 2) {
+                arrayBuffer[i / 2] = parseInt(hexString.substr(i, 2), 16);
+            }
+            return arrayBuffer;
+        }
+    
+        // Преобразование ArrayBuffer в base64 для отправки на сервер
+        function arrayBufferToBase64(buffer) {
+             let binary = '';
+             const bytes = new Uint8Array(buffer);
+             const len = bytes.byteLength;
+             for (let i = 0; i < len; i++) {
+                 binary += String.fromCharCode(bytes[i]);
+             }
+             return window.btoa(binary);
+        }
+    
         document.getElementById("register-btn").addEventListener("click", async () => {
             try {
-                // Запрос опций для регистрации Face ID
                 const beginResponse = await fetch("/register/begin", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -60,20 +82,30 @@
                         display_name: "{{ display_name }}"
                     })
                 });
-                const options = await beginResponse.json();
-                // Запуск создания credential через WebAuthn API
+                let options = await beginResponse.json();
+                console.log("Registration options from server:", options);
+                
+                // Преобразуем challenge из hex-строки в ArrayBuffer
+                options.publicKey.challenge = hexStringToUint8Array(options.publicKey.challenge).buffer;
+                
+                // По стандарту user.id тоже должен быть ArrayBuffer – преобразуем его:
+                options.publicKey.user.id = new TextEncoder().encode(options.publicKey.user.id);
+    
                 const credential = await navigator.credentials.create({ publicKey: options.publicKey });
-                // Передача клиентских данных для завершения регистрации
+                console.log("Credential created:", credential);
+    
                 const completeResponse = await fetch("/register/complete", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         user_id: "{{ user_id }}",
-                        clientDataJSON: credential.response.clientDataJSON,
-                        attestationObject: credential.response.attestationObject
+                        // Преобразуем ArrayBuffer к base64 для отправки на сервер
+                        clientDataJSON: arrayBufferToBase64(credential.response.clientDataJSON),
+                        attestationObject: arrayBufferToBase64(credential.response.attestationObject)
                     })
                 });
                 const result = await completeResponse.json();
+                console.log("Registration complete:", result);
                 document.getElementById("result-msg").textContent = result.message;
             } catch (error) {
                 console.error("Ошибка при регистрации Face ID:", error);
