@@ -5,12 +5,15 @@ from fido2.webauthn import PublicKeyCredentialRpEntity, PublicKeyCredentialUserE
 import base64
 from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify, session
 import sqlite3
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 app.secret_key = os.urandom(32)  # Необходим для работы сессий
 
 # Параметры RP
-
+logging.debug("penis")
 # Настройки FIDO2
 RP_ID = "b2b-uvcj.onrender.com"
 RP_NAME = "B2B Platform"
