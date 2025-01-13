@@ -1,27 +1,38 @@
-'''import sqlite3
+from fido2.server import Fido2Server
+from fido2.webauthn import PublicKeyCredentialRpEntity, PublicKeyCredentialUserEntity
 
-conn = sqlite3.connect('users.db')
-cursor = conn.cursor()
+# Укажите информацию о вашем сервере (RP — Relying Party)
+rp = PublicKeyCredentialRpEntity(id="your-domain.com", name="Your Application")
+server = Fido2Server(rp)
 
-cursor.execute("SELECT * FROM cards")
-cards = cursor.fetchall()
+# Создайте данные пользователя
+user = PublicKeyCredentialUserEntity(
+    id=b"user-unique-id",  # Уникальный идентификатор пользователя
+    name="username",
+    display_name="User Display Name",
+    icon="https://your-domain.com/user-icon.png",
+)
 
-print("Данные в таблице cards:")
-for card in cards:
-    print(card)
+# Шаг 1: Генерация опций для регистрации
+registration_data = server.register_begin(
+    user=user,
+    user_verification="preferred",  # Требования к верификации
+)
 
-conn.close()'''
+print("Отправьте эти данные на клиентскую сторону:", registration_data)
 
-import sqlite3
+# Шаг 2: После получения ответа с клиента
+client_data = b""  # Полученные данные от клиента (замените на реальные)
+auth_data = b""    # Аутентификационные данные от клиента
+signature = b""    # Подпись от клиента
+attestation_object = b""  # Объект аттестации от клиента
 
-conn = sqlite3.connect('users.db')
-cursor = conn.cursor()
+# Завершение процесса регистрации
+credentials = server.register_complete(
+    registration_data["publicKey"],
+    client_data,
+    auth_data,
+    attestation_object,
+)
 
-cursor.execute('SELECT * FROM cards')
-cards = cursor.fetchall()
-
-print("Данные в таблице cards:")
-for card in cards:
-    print(card)
-
-conn.close()
+print("Регистрация завершена. Данные:", credentials)

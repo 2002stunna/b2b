@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS cards (
 )
 ''')
 
-# ------------------- Таблица для "заявок" (если используете) -------------------
+# ------------------- Таблица pending_users (заявки) -------------------
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS pending_users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS pending_users (
 )
 ''')
 
-# ------------------- Таблица orders (заявок покупателей) -------------------
+# ------------------- Таблица orders -------------------
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,6 +58,20 @@ CREATE TABLE IF NOT EXISTS orders (
     status TEXT NOT NULL,
     FOREIGN KEY (card_id) REFERENCES cards(id),
     FOREIGN KEY (buyer_id) REFERENCES users(id)
+)
+''')
+
+# ------------------- Таблица face_id_credentials -------------------
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS face_id_credentials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    credential_id TEXT NOT NULL UNIQUE,
+    public_key TEXT NOT NULL,
+    sign_count INTEGER NOT NULL DEFAULT 0,
+    rp_id TEXT NOT NULL,
+    user_handle TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 )
 ''')
 
