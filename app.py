@@ -1,7 +1,124 @@
-from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify
+import os
+import json
+from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify, session
 import sqlite3
+from webauthn.helpers import generate_registration_options, generate_authentication_options
+from webauthn import verify_registration_response, verify_authentication_response
 
 app = Flask(__name__)
+app.secret_key = os.urandom(32)  # Необходим для работы сессий
+
+# Параметры RP
+RP_ID = 'b2b-uvcj.onrender.com'   # Замените на ваш домен
+RP_NAME = 'My WebApp'
+EXPECTED_ORIGIN = f"https://b2b-uvcj.onrender.com"
+
+@app.route('/webauthn/register/options', methods=['GET'])
+def webauthn_register_options():
+    """
+    Генерирует опции регистрации для WebAuthn.
+    Ожидает параметр username в query string.
+    """
+    username = request.args.get('username')
+    if not username:
+        return jsonify({"error": "Username required"}), 400
+
+    # Для простоты user_id будем использовать username, в реальном приложении – уникальный бинарный id
+    user_id = username.encode()
+
+    # Генерация регистрационных опций
+    registration_options = generate_registration_options(
+        rp_id=RP_ID,
+        rp_name=RP_NAME,
+        user_id=user_id,
+        user_name=username,
+        user_display_name=username
+    )
+    # Сохранить опции регистрации (challenge) в сессию для последующей проверки
+    session['registration_options'] = json.dumps(registration_options)
+    return jsonify(registration_options)
+
+
+@app.route('/webauthn/register', methods=['POST'])
+def webauthn_register():
+    """
+    Обработка ответа от клиента при регистрации Face ID.
+    Клиент отправляет JSON с данными регистрации.
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data received"}), 400
+
+    try:
+        registration_options = json.loads(session.get('registration_options', '{}'))
+        verification = verify_registration_response(
+            credential_response=data,
+            expected_challenge=registration_options['challenge'],
+            expected_rp_id=RP_ID,
+            expected_origin=EXPECTED_ORIGIN,
+            require_user_verification=True
+        )
+        # При успешной проверке необходимо сохранить в базу данных:
+        # - user id (например, username)
+        # - credential id
+        # - credential public key
+        # - другие параметры регистрации
+        # Здесь для примера просто выводим сообщение
+        return jsonify({"status": "ok", "message": "Face ID успешно зарегистрирован."})
+    except Exception as e:
+        print("Ошибка при регистрации WebAuthn:", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/webauthn/login/options', methods=['GET'])
+def webauthn_login_options():
+    """
+    Генерирует опции для аутентификации через WebAuthn.
+    Ожидается, что в базе данных уже сохранены разрешённые credential_id пользователя.
+    Здесь для упрощения мы не используем allowCredentials.
+    """
+    username = request.args.get('username')
+    if not username:
+        return jsonify({"error": "Username required"}), 400
+
+    authentication_options = generate_authentication_options(
+        rp_id=RP_ID,
+        # В реальном приложении allow_credentials заполняется списком credential, зарегистрированных для пользователя
+        allow_credentials=[]
+    )
+    # Сохранить опции аутентификации в сессии для последующей проверки
+    session['authentication_options'] = json.dumps(authentication_options)
+    return jsonify(authentication_options)
+
+@app.route('/webauthn/login', methods=['POST'])
+def webauthn_login():
+    """
+    Обработка ответа от клиента при аутентификации через WebAuthn.
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data received"}), 400
+
+    try:
+        authentication_options = json.loads(session.get('authentication_options', '{}'))
+        # В реальном приложении вам необходимо получить из базы данных credential_public_key пользователя
+        # Здесь для демонстрации используем dummy_public_key
+        dummy_public_key = "dummy_public_key"  # Замените на публичный ключ, полученный при регистрации
+        verification = verify_authentication_response(
+            credential_response=data,
+            expected_challenge=authentication_options['challenge'],
+            expected_rp_id=RP_ID,
+            expected_origin=EXPECTED_ORIGIN,
+            credential_public_key=dummy_public_key
+        )
+        # Если проверка пройдена, аутентифицировать пользователя
+        username = data.get('username', 'unknown')
+        response = make_response(jsonify({"status": "ok"}))
+        response.set_cookie('username', username)
+        return response
+    except Exception as e:
+        print("Ошибка при аутентификации WebAuthn:", e)
+        return jsonify({"error": str(e)}), 500
 
 # ----------------- 1. Проверка пользователя ------------------
 def check_user(username, password):
