@@ -161,14 +161,45 @@
     </div>
 
     <!-- Кнопка Настройки Face ID в нижнем левом углу -->
-    <button onclick="registerFaceID()">Зарегистрировать Face ID</button>
+    <button class="faceid-settings-btn" onclick="registerFaceID()">Зарегистрировать Face ID</button>
 
     <script>
         async function registerFaceID() {
-            const response = await fetch("/faceid/register", { method: "GET" });
-            const data = await response.json();
-            console.log("Registration options:", data);
-            // Реализация взаимодействия с WebAuthn API
+            try {
+                const response = await fetch("/register/begin", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        user_id: "{{ user_id }}",
+                        username: "{{ username }}",
+                        display_name: "{{ display_name }}"
+                    })
+                });
+                const options = await response.json();
+                console.log("Registration options:", options);
+
+                const publicKey = options.publicKey;
+                const credential = await navigator.credentials.create({ publicKey });
+
+                const responseComplete = await fetch("/register/complete", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        user_id: "{{ user_id }}",
+                        clientDataJSON: credential.response.clientDataJSON,
+                        attestationObject: credential.response.attestationObject
+                    })
+                });
+
+                const result = await responseComplete.json();
+                console.log("Registration complete:", result);
+            } catch (error) {
+                console.error("Ошибка при регистрации Face ID:", error);
+            }
         }
     </script>
 

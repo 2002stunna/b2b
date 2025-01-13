@@ -1,13 +1,13 @@
-from fido2.ctap2 import AttestedCredentialData
 import os
 import json
-from fido2.utils import websafe_encode
-from fido2.server import Fido2Server
-from fido2.webauthn import PublicKeyCredentialRpEntity, PublicKeyCredentialUserEntity
 import base64
 from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify, session
 import sqlite3
 import logging
+from fido2.webauthn import PublicKeyCredentialCreationOptions, PublicKeyCredentialParameters, PublicKeyCredentialType, AuthenticatorSelectionCriteria, UserVerificationRequirement
+from fido2.ctap2 import AttestationObject
+from fido2.client import ClientData
+from fido2.server import Fido2Server
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -26,56 +26,46 @@ logging.debug("penis")
 DB_PATH = "Main.db"
 
 # ---------------- Маршрут: Регистрация Face ID ----------------
-@app.route('/faceid/register', methods=['GET', 'POST'])
-def register_faceid():
-    if request.method == 'GET':
-        # Создаём данные для регистрации
-        registration_data, state = fido2_server.register_begin(
-            {
-                "id": b"user-id-12345",
-                "name": "test-user",
-                "displayName": "Test User"
-            },
-            user_verification="discouraged",
-        )
-        # Сохраняем состояние регистрации (можно сохранить в сессии или базе)
-        session['state'] = state
+# Маршрут для начала регистрации
+@app.route('/register/begin', methods=['POST'])
+def register_begin():
+    user_id = request.json['user_id']
+    username = request.json['username']
+    display_name = request.json['display_name']
 
-        # Убедитесь, что все данные сериализуемы
-        registration_data_serializable = {
-            **registration_data,
-            "challenge": websafe_encode(registration_data['challenge']).decode(),
-        }
-        return jsonify(registration_data_serializable)
+    user = PublicKeyCredentialUserEntity(id=user_id.encode(), name=username, displayName=display_name)
+    auth_selection = AuthenticatorSelectionCriteria(user_verification=UserVerificationRequirement.REQUIRED)
+    pub_key_cred_params = [PublicKeyCredentialParameters(PublicKeyCredentialType.PUBLIC_KEY, 'ES256')]
 
-    elif request.method == 'POST':
-        # Получаем завершённые данные регистрации
-        attestation_object = request.json.get("attestationObject")
-        client_data = request.json.get("clientDataJSON")
+    options, state = fido2_server.register_begin(
+        user=user,
+        credentials=[],
+        authenticator_selection=auth_selection,
+        pub_key_cred_params=pub_key_cred_params
+    )
 
-        if not attestation_object or not client_data:
-            return jsonify({"error": "Invalid registration data"}), 400
+    session['state'] = state
+    return jsonify(options)
 
-        state = request.session.get('state')
-        if not state:
-            return jsonify({"error": "Registration state not found"}), 400
+# Маршрут для завершения регистрации
+@app.route('/register/complete', methods=['POST'])
+def register_complete():
+    data = request.json
+    client_data = ClientData(base64.b64decode(data['clientDataJSON']))
+    att_obj = AttestationObject(base64.b64decode(data['attestationObject']))
+    state = session['state']
 
-        # Завершаем регистрацию
-        credential = fido2_server.register_complete(
-            state,
-            client_data,
-            attestation_object
-        )
+    auth_data = fido2_server.register_complete(state, client_data, att_obj)
+    
+    # Сохраните auth_data в базе данных
+    save_to_database(
+        user_id=data['user_id'],
+        credential_id=auth_data.credential_id,
+        public_key=auth_data.credential_public_key,
+        sign_count=auth_data.sign_count
+    )
 
-        # Сохраняем данные в базу данных
-        save_to_database(
-            user_id=123,  # Укажите текущего пользователя
-            credential_id=credential.credential_id,
-            public_key=credential.public_key,
-            sign_count=credential.sign_count
-        )
-
-        return jsonify({"success": True})
+    return jsonify({'status': 'ok'})
 
 
 def save_to_database(user_id, credential_id, public_key, sign_count):
