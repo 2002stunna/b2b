@@ -13,7 +13,7 @@ app = Flask(__name__)
 app.secret_key = os.urandom(32)  # Необходим для работы сессий
 
 # Параметры RP
-logging.debug("penis")
+
 # Настройки FIDO2
 RP_ID = "b2b-uvcj.onrender.com"
 RP_NAME = "B2B Platform"
@@ -69,7 +69,7 @@ def register_faceid():
                 websafe_encode(auth_data.credential_data.user_handle),
             ))
             
-            print(f"Сохраняем Face ID: {user_id}, {credential_id}, {public_key}, {sign_count}")
+            logging.debug("penis OK")
             
             conn.commit()
             conn.close()
@@ -78,6 +78,9 @@ def register_faceid():
 
         except Exception as e:
             print(f"Ошибка регистрации Face ID: {e}")
+            
+            logging.debug("penis BAD")
+            
             return jsonify({"status": "failed", "error": str(e)}), 400
 
 # ---------------- Маршрут: Вход через Face ID ----------------
