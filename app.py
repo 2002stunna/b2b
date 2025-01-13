@@ -19,7 +19,7 @@ RP_ID = "b2b-uvcj.onrender.com"
 RP_NAME = "B2B Platform"
 server = Fido2Server({"id": RP_ID, "name": RP_NAME})
 
-logging.debug("penisO")
+logging.debug("penis")
 
 # ---------------- Маршрут: Регистрация Face ID ----------------
 @app.route("/faceid/register", methods=["GET", "POST"])
