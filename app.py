@@ -4,7 +4,7 @@ import base64
 from flask import Flask, request, render_template, redirect, url_for, make_response, jsonify, session
 import sqlite3
 import logging
-from fido2.webauthn import PublicKeyCredentialCreationOptions, PublicKeyCredentialParameters, PublicKeyCredentialType, AuthenticatorSelectionCriteria, UserVerificationRequirement
+from fido2.webauthn import PublicKeyCredentialCreationOptions, PublicKeyCredentialParameters, PublicKeyCredentialType, AuthenticatorSelectionCriteria, UserVerificationRequirement, PublicKeyCredentialUserEntity
 from fido2.ctap2 import AttestationObject
 from fido2.client import ClientData
 from fido2.server import Fido2Server
