@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Настройки Face ID</title>
+    <title>Настройки биометрической аутентификации</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -22,6 +22,7 @@
             text-align: center;
             max-width: 400px;
             width: 100%;
+            margin-bottom: 20px;
         }
         .register-btn {
             margin-top: 20px;
@@ -36,16 +37,30 @@
         .register-btn:hover {
             background-color: #0056b3;
         }
+        .section-title {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
+    <!-- Секция для настройки Face ID -->
     <div class="container">
         <h1>Настройка Face ID</h1>
         <p>Нажмите кнопку ниже, чтобы зарегистрировать ваши данные Face ID.</p>
         <button class="register-btn" id="register-btn">Зарегистрировать Face ID</button>
-        <p id="result-msg"></p>
-        <p><a href="/business">Вернуться в кабинет</a></p>
+        <p id="result-msg-faceid"></p>
     </div>
+
+    <!-- Секция для настройки Touch ID -->
+    <div class="container">
+        <h1>Настройка Touch ID</h1>
+        <p>Нажмите кнопку ниже, чтобы зарегистрировать ваши данные Touch ID.</p>
+        <button class="register-btn" id="register-touchid-btn">Зарегистрировать Touch ID</button>
+        <p id="result-msg-touchid"></p>
+    </div>
+
+    <p><a href="/business">Вернуться в кабинет</a></p>
 
     <script>
         // Функция для конвертации hex-строки в Uint8Array
@@ -60,7 +75,7 @@
             return arrayBuffer;
         }
     
-        // Преобразование ArrayBuffer в base64 для отправки на сервер
+        // Функция для преобразования ArrayBuffer в base64 для отправки на сервер
         function arrayBufferToBase64(buffer) {
              let binary = '';
              const bytes = new Uint8Array(buffer);
@@ -70,8 +85,9 @@
              }
              return window.btoa(binary);
         }
-    
-        document.getElementById("register-btn").addEventListener("click", async () => {
+        
+        // Общая функция для регистрации через WebAuthn (используется для Face ID и Touch ID)
+        async function registerBiometric(method) {
             try {
                 const beginResponse = await fetch("/register/begin", {
                     method: "POST",
@@ -83,16 +99,16 @@
                     })
                 });
                 let options = await beginResponse.json();
-                console.log("Registration options from server:", options);
+                console.log(method + " registration options from server:", options);
                 
                 // Преобразуем challenge из hex-строки в ArrayBuffer
                 options.publicKey.challenge = hexStringToUint8Array(options.publicKey.challenge).buffer;
                 
-                // По стандарту user.id тоже должен быть ArrayBuffer – преобразуем его:
+                // Преобразуем user.id тоже в ArrayBuffer
                 options.publicKey.user.id = new TextEncoder().encode(options.publicKey.user.id);
     
                 const credential = await navigator.credentials.create({ publicKey: options.publicKey });
-                console.log("Credential created:", credential);
+                console.log(method + " Credential created:", credential);
     
                 const completeResponse = await fetch("/register/complete", {
                     method: "POST",
@@ -105,11 +121,31 @@
                     })
                 });
                 const result = await completeResponse.json();
-                console.log("Registration complete:", result);
-                document.getElementById("result-msg").textContent = result.message;
+                console.log(method + " Registration complete:", result);
+                return result.message;
             } catch (error) {
-                console.error("Ошибка при регистрации Face ID:", error);
-                document.getElementById("result-msg").textContent = "Ошибка при регистрации Face ID.";
+                console.error("Ошибка при регистрации " + method + ":", error);
+                throw "Ошибка при регистрации " + method;
+            }
+        }
+    
+        // Обработчик для Face ID
+        document.getElementById("register-btn").addEventListener("click", async () => {
+            try {
+                const message = await registerBiometric("Face ID");
+                document.getElementById("result-msg-faceid").textContent = message;
+            } catch (error) {
+                document.getElementById("result-msg-faceid").textContent = error;
+            }
+        });
+    
+        // Обработчик для Touch ID
+        document.getElementById("register-touchid-btn").addEventListener("click", async () => {
+            try {
+                const message = await registerBiometric("Touch ID");
+                document.getElementById("result-msg-touchid").textContent = message;
+            } catch (error) {
+                document.getElementById("result-msg-touchid").textContent = error;
             }
         });
     </script>

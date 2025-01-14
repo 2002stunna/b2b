@@ -184,6 +184,72 @@
             }
         });
     </script>
+    <!-- Предположим, этот фрагмент в login.html, рядом с кнопкой Face ID -->
+<button type="button" id="touchid-login-btn" class="login-button">Вход по Touch ID</button>
+
+<script>
+    // Функция для преобразования hex-строки в Uint8Array
+    function hexStringToUint8Array(hexString) {
+        if (hexString.length % 2 !== 0) {
+            throw "Неверная hex-строка";
+        }
+        const arrayBuffer = new Uint8Array(hexString.length / 2);
+        for (let i = 0; i < hexString.length; i += 2) {
+            arrayBuffer[i / 2] = parseInt(hexString.substr(i, 2), 16);
+        }
+        return arrayBuffer;
+    }
+    
+    // Функция для преобразования строки в ArrayBuffer через TextEncoder
+    function stringToArrayBuffer(str) {
+        return new TextEncoder().encode(str).buffer;
+    }
+
+    document.getElementById("touchid-login-btn").addEventListener("click", async () => {
+        try {
+            const response = await fetch("/auth/touch-id/options", { method: "GET" });
+            if (!response.ok) {
+                throw new Error("Не удалось получить опции для аутентификации.");
+            }
+            let options = await response.json();
+            console.log("Touch ID - получены опции для входа:", options);
+            
+            // Преобразуем challenge из hex-строки в ArrayBuffer
+            options.challenge = hexStringToUint8Array(options.challenge).buffer;
+            
+            // Преобразуем allowCredentials.id из строки в ArrayBuffer
+            if (options.allowCredentials && Array.isArray(options.allowCredentials)) {
+                options.allowCredentials = options.allowCredentials.map(cred => ({
+                    ...cred,
+                    id: stringToArrayBuffer(cred.id)  // или hexStringToUint8Array(cred.id).buffer, если id в hex-формате
+                }));
+            }
+            
+            // Вызываем WebAuthn API для аутентификации
+            const assertion = await navigator.credentials.get({ publicKey: options });
+            console.log("Touch ID - получен assertion:", assertion);
+
+            const result = await fetch("/auth/touch-id/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: assertion.id
+                    // Дополнительно можно отправить clientDataJSON, authenticatorData, signature, если потребуется
+                }),
+            });
+            const resData = await result.json();
+            console.log("Touch ID - результат верификации:", resData);
+            if (resData.status === "ok") {
+                window.location.href = "/business";
+            } else {
+                alert("Вход по Touch ID не удался.");
+            }
+        } catch (error) {
+            console.error("Ошибка аутентификации Touch ID:", error);
+            alert("Ошибка аутентификации Touch ID.");
+        }
+    });
+    </script>
     </div>
 </body>
 </html>

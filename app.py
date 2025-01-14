@@ -587,7 +587,79 @@ def faceid_verify():
         return jsonify({"status": "error", "message": "Ошибка при верификации."}), 500
 
 # ----------------------- Дополнительные маршруты -----------------------
+# Эндпоинт для получения опций входа по Touch ID
+@app.route('/auth/touch-id/options', methods=['GET'])
+def touchid_login_options():
+    try:
+        challenge = os.urandom(32).hex()
+        print("[TouchID Login Options] Сгенерированный challenge:", challenge)
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            # Используем ту же таблицу с данными аутентификаторов
+            cursor.execute('SELECT credential_id FROM face_id_credentials')
+            rows = cursor.fetchall()
+            conn.close()
+            allowed = [{"type": "public-key", "id": row[0]} for row in rows]
+            print("[TouchID Login Options] Разрешённые credential_id:", allowed)
+        except Exception as db_e:
+            print("[TouchID Login Options] Ошибка при получении данных из БД:", db_e)
+            allowed = []
+        options = {
+            "challenge": challenge,
+            "allowCredentials": allowed,
+            "timeout": 60000,
+            "rpId": request.host.split(':')[0]
+        }
+        print("[TouchID Login Options] Отправляем опции входа:", options)
+        return jsonify(options)
+    except Exception as e:
+        print("[TouchID Login Options] Общая ошибка получения опций:", e)
+        return jsonify({"status": "error", "message": "Ошибка при получении опций входа."}), 500
 
+# Эндпоинт для верификации входа по Touch ID
+@app.route('/auth/touch-id/verify', methods=['POST'])
+def touchid_verify():
+    try:
+        data = request.get_json()
+        print("[TouchID Verify] Получены данные:", data)
+        credential_id = data.get('id')
+        if not credential_id:
+            print("[TouchID Verify] Не передан credential_id.")
+            return jsonify({"status": "error", "message": "No credential id provided."}), 400
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute('SELECT user_id FROM face_id_credentials WHERE credential_id=?', (credential_id,))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                user_id = row[0]
+                print("[TouchID Verify] Найден user_id:", user_id)
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute('SELECT username, password, role FROM users WHERE id=?', (user_id,))
+                user_row = cursor.fetchone()
+                conn.close()
+                if user_row:
+                    username = user_row[0]
+                    password = user_row[1]
+                    print("[TouchID Verify] Успешная верификация. Авторизуем пользователя:", username)
+                    response = make_response(jsonify({"status": "ok"}))
+                    response.set_cookie("username", username)
+                    response.set_cookie("password", password)
+                    return response
+                else:
+                    print("[TouchID Verify] Пользователь не найден по user_id:", user_id)
+            else:
+                print("[TouchID Verify] Credential id не найден в базе:", credential_id)
+        except Exception as db_e:
+            print("[TouchID Verify] Ошибка при обращении к БД:", db_e)
+        return jsonify({"status": "error", "message": "Verification failed."}), 400
+    except Exception as e:
+        print("[TouchID Verify] Общая ошибка верификации:", e)
+        return jsonify({"status": "error", "message": "Ошибка при верификации."}), 500
+    
 @app.route('/webauthn-login', methods=['GET'])
 def webauthn_login():
     username = "faceid_user"  # Заглушка для демонстрации
